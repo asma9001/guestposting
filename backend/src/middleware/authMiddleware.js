@@ -1,55 +1,30 @@
 const User = require('../models/User');
-const { verifyAccessToken } = require('../utils/jwt');
-const { errorResponse } = require('../utils/response');
 
-/**
- * Protect middleware — validates JWT and attaches user to req
- */
+const jwt = require("jsonwebtoken");
+
 const protect = async (req, res, next) => {
-  try {
-    // Extract token from Authorization header
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return errorResponse(res, 401, 'Access denied. No token provided.');
-    }
+  let token;
 
-    const token = authHeader.split(' ')[1];
-
-    // Verify token
-    let decoded;
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
     try {
-      decoded = verifyAccessToken(token);
+      token = req.headers.authorization.split(" ")[1];
+
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      req.user = await User.findById(decoded.id).select("-password");
+
+      return next();
     } catch (err) {
-      if (err.name === 'TokenExpiredError') {
-        return errorResponse(res, 401, 'Token has expired. Please log in again.');
-      }
-      return errorResponse(res, 401, 'Invalid token.');
+      console.error("Token verification failed: ", err.message);
+      return res.status(401).json({ message: "Not authorized, token failed" });
     }
-
-    // Check user still exists
-    const user = await User.findById(decoded.id);
-    if (!user) {
-      return errorResponse(res, 401, 'The user belonging to this token no longer exists.');
-    }
-
-    if (!user.isActive) {
-      return errorResponse(res, 403, 'Your account has been deactivated.');
-    }
-
-    // Attach user to request
-    req.user = { id: user._id, role: user.role, email: user.email };
-    next();
-  } catch (error) {
-    console.error('Auth middleware error:', error);
-    return errorResponse(res, 500, 'Authentication error.');
   }
+  return res.status(401).json({ message: "Not authorized, token failed" });
 };
-
-/**
- * Role-based access control middleware
- * Usage: restrictTo('advertiser') or restrictTo('publisher', 'advertiser')
- */
-const restrictTo = (...roles) => {
+const restrictTo  = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       return errorResponse(

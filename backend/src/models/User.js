@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Password is required'],
       minlength: [8, 'Password must be at least 8 characters'],
-      select: false,
+ required: true,
     },
 
     role: {
@@ -82,23 +82,6 @@ const userSchema = new mongoose.Schema(
       default: 0,
     },
 
-    // ─── Business Info ────────────────────────────────────
-    business: {
-      companyName: { type: String, default: null },
-      regNumber:   { type: String, default: null },
-      vatNumber:   { type: String, default: null },
-      address:     { type: String, default: null },
-      country:     { type: String, default: null },
-      city:        { type: String, default: null },
-      postalCode:  { type: String, default: null },
-      isVerified:  { type: Boolean, default: false },
-      documents: [
-        {
-          url:        { type: String },
-          uploadedAt: { type: Date, default: Date.now },
-        },
-      ],
-    },
 
     // ─── Payment Methods ──────────────────────────────────
     paymentMethods: [

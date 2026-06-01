@@ -1,201 +1,536 @@
-import { useState, useEffect, useRef } from 'react';
-import { gsap } from 'gsap';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useState, useEffect, useRef } from "react";
+import { gsap } from "gsap";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   UserIcon,
   LockIcon,
   BriefcaseIcon,
   WalletIcon,
   CameraIcon,
-  StarIcon,
   EyeIcon,
   EyeOffIcon,
   CheckCircleIcon,
-
-
-  PlusIcon,
-  TrashIcon,
   EditIcon,
-  MessageSquareIcon,
-  ThumbsUpIcon,
+  TrashIcon,
+  PlusIcon,
+  StarIcon ,
+  ThumbsUpIcon ,
   ThumbsDownIcon,
+
+  MessageSquareIcon,
   BuildingIcon,
-  ShoppingBagIcon } from
-
-'lucide-react';
-import { useUserStore } from '@/stores/userStore';
-
-
-
-
+  ShoppingBagIcon,
+  AlertCircle,
+} from "lucide-react";
+import { useUserStore } from "@/stores/userStore";
+import { cn } from "@/lib/utils";
+import {
+  updateProfile,
+  updatePassword,
+  updateBusiness,
+} from "../services/profileApi";
 
 export function ProfileSection({ onBack }) {
-  const { role } = useUserStore();
-  const isPublisher = role === 'publisher';
-  
+  const { user, role, isLoading, fetchProfile } = useUserStore();
+
+  const token = localStorage.getItem("accessToken");
+  console.log("user", user);
+
+  // ✅ STATE DEFINITIONS
+  const [isBusinessVerified, setIsBusinessVerified] = useState(
+    user?.business?.isVerified || false,
+  );
+  // ProfileSection ke upar baaki states ke sath ise add karein:
+  const [activeTab, setActiveTab] = useState("personal");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isBusinessVerified, setIsBusinessVerified] = useState(true); // Toggle this to show/hide verification
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(user?.avatar);
+  const [imageFile, setImageFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const initialNameParts = user?.fullName
+    ? user.fullName.trim().split(" ")
+    : [];
+  const initialFirstName = initialNameParts[0] || "";
+  const initialLastName = initialNameParts.slice(1).join(" ") || "";
+  // ✅ PERSONAL FORM STATE
+  const [formData, setFormData] = useState({
+    firstName: initialFirstName,
+    lastName: initialLastName,
+    phone: user?.phone || "",
+    phoneCode: user?.phoneCode || "+1",
+    timezone: user?.timezone || "utc-5",
+  });
+
+  // ✅ PASSWORD FORM STATE (THIS WAS MISSING!)
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  // ✅ BUSINESS FORM STATE (THIS WAS MISSING!)
+  const [businessForm, setBusinessForm] = useState({
+    companyName: user?.business?.companyName || "",
+    regNumber: user?.business?.regNumber || "",
+    vatNumber: user?.business?.vatNumber || "",
+    address: user?.business?.address || "",
+    country: user?.business?.country || "",
+    city: user?.business?.city || "",
+    postalCode: user?.business?.postalCode || "",
+  });
+
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const headerRef = useRef(null);
   const tabsRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  console.log("user in profile section:", user);
+  const isPublisher = role === "publisher";
 
   useEffect(() => {
     if (headerRef.current) {
       gsap.fromTo(
         headerRef.current,
         { opacity: 0, y: -20 },
-        { opacity: 1, y: 0, duration: 0.6, ease: 'power2.out' }
+        { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" },
       );
     }
     if (tabsRef.current) {
       gsap.fromTo(
         tabsRef.current,
         { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, duration: 0.6, delay: 0.2, ease: 'power2.out' }
+        { opacity: 1, y: 0, duration: 0.6, delay: 0.2, ease: "power2.out" },
       );
     }
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      // 💡 FullName ko split karein space ke zariye
+      // Agar name "John Doe" hai to parts = ["John", "Doe"]
+      const nameParts = user.fullName ? user.fullName.trim().split(" ") : [];
+      const firstName = nameParts[0] || "";
+      // Agar middle name bhi ho to baaki saara hissa lastName ban jaye
+      const lastName = nameParts.slice(1).join(" ") || "";
+
+      setFormData({
+        firstName: firstName,
+        lastName: lastName,
+        phone: user.phone || "",
+        phoneCode: user.phoneCode || "+1",
+        timezone: user.timezone || "utc-5",
+      });
+
+      setBusinessForm({
+        companyName: user?.business?.companyName || "",
+        regNumber: user?.business?.regNumber || "",
+        vatNumber: user?.business?.vatNumber || "",
+        address: user?.business?.address || "",
+        country: user?.business?.country || "",
+        city: user?.business?.city || "",
+        postalCode: user?.business?.postalCode || "",
+      });
+
+      setAvatarPreview(user.avatar || "");
+      setIsBusinessVerified(user?.business?.isVerified || false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (successMessage || errorMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage("");
+        setErrorMessage("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage, errorMessage]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => setAvatarPreview(event.target?.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // ✅ UPLOAD AVATAR
+  const handleUploadAvatar = async () => {
+    if (!avatarFile) return;
+    try {
+      setLoading(true);
+      const formDataObj = new FormData();
+      formDataObj.append("avatar", avatarFile);
+
+      const result = await updateProfile(user.id, formDataObj);
+      if (result.success) {
+        setSuccessMessage("Avatar updated successfully!");
+        setAvatarFile(null);
+        await fetchProfile();
+      } else {
+        setErrorMessage(result.error || "Failed to update avatar");
+      }
+    } catch (err) {
+      setErrorMessage("Error uploading avatar");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleSavePersonal = async (e) => {
+    if (e) e.preventDefault();
+
+    try {
+      setLoading(true);
+      const form = new FormData();
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+
+      form.append("fullName", fullName);
+      form.append("phone", formData.phone);
+      form.append("phoneCode", formData.phoneCode);
+      form.append("timezone", formData.timezone);
+      if (avatarFile) {
+        form.append("avatar", avatarFile);
+      }
+
+      const res = await updateProfile(user.id, form);
+
+      if (res.success) {
+        setSuccessMessage("Profile updated successfully!");
+        setAvatarFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+
+        await fetchProfile();
+
+        // 🎯 Jese hi save successfully ho, Next tab par bhej dein
+        setActiveTab("security");
+      } else {
+        setErrorMessage(res.error || "Failed to update profile");
+      }
+    } catch (err) {
+      setErrorMessage(
+        err.response?.data?.message || "Failed to update profile",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ SAVE PASSWORD
+  const handleSavePassword = async () => {
+    setLoading(true);
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setErrorMessage("New passwords do not match");
+      setLoading(false);
+      return;
+    }
+    if (passwordForm.newPassword.length < 8) {
+      setErrorMessage("Password must be at least 8 characters");
+      setLoading(false);
+      return;
+    }
+    console.log("Attempting to update password for user ID:", user.id);
+    try {
+      const result = await updatePassword(user.id, {
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+        confirmPassword: passwordForm.confirmPassword,
+      });
+      if (result.success) {
+        setSuccessMessage("Password updated successfully!");
+        setPasswordForm({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+              setActiveTab("business");
+      } else {
+        setErrorMessage(result.error || "Failed to update password");
+      }
+    } catch (err) {
+      console.error("Error:", err);
+      setErrorMessage(err.response?.data?.message || "Error updating password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ SAVE BUSINESS INFO
+// ✅ SAVE BUSINESS INFO (UPDATED VALIDATION & ERROR HANDLING)
+  const handleSaveBusiness = async () => {
+    // 1. Agar user publisher hai aur details khali hain
+    if (isPublisher) {
+      if (
+        !businessForm.companyName?.trim() ||
+        !businessForm.regNumber?.trim() ||
+        !businessForm.vatNumber?.trim() ||
+        !businessForm.address?.trim() ||
+        !businessForm.country?.trim() ||
+        !businessForm.city?.trim() ||
+        !businessForm.postalCode?.trim()
+      ) {
+        setErrorMessage("All business fields are required for publishers.");
+        return;
+      }
+    } else {
+      // 2. Agar user advertiser hai aur saari fields khali hain (Kuch bhi nahi likha)
+      const allFieldsEmpty = Object.values(businessForm).every(
+        (value) => !value || value.trim() === ""
+      );
+      if (allFieldsEmpty) {
+        setErrorMessage("Please fill in at least some details before updating.");
+        return;
+      }
+    }
+
+    try {
+      setLoading(true);
+      setErrorMessage(""); // Purani errors clear karein
+      setSuccessMessage("");
+
+      const result = await updateBusiness(user.id, businessForm);
+      
+      if (result.success || result.data) {
+        setSuccessMessage("Business information updated successfully!");
+        await fetchProfile();
+         setActiveTab("payment");
+      } else {
+        setErrorMessage(result.error || "Failed to update business info");
+      }
+    } catch (err) {
+      console.error("❌ Catch Block Triggered - Error:", err);
+      
+      // Axios response error ko check karne ka sahi tarika:
+      const serverErrorMessage = 
+        err.response?.data?.message || 
+        err.message || 
+        "Error updating business info";
+        
+      setErrorMessage(serverErrorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getInitials = (name) =>
+    name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase() || "U";
+
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-4">
-      {/* Page Header */}
       <div ref={headerRef} className="mb-2">
-        <h1 className="text-xl font-semibold text-foreground mb-0.5">Profile Settings</h1>
-        <p className="text-xs text-muted-foreground">Manage your account settings and preferences</p>
+        <h1 className="text-xl font-semibold text-foreground mb-0.5">
+          Profile Settings
+        </h1>
+        <p className="text-xs text-muted-foreground">
+          Manage your account settings and preferences
+        </p>
       </div>
 
-      <Tabs defaultValue="personal" className="w-full" ref={tabsRef}>
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+          <CheckCircleIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-green-700">{successMessage}</p>
+        </div>
+      )}
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-700">{errorMessage}</p>
+        </div>
+      )}
+      {/* 🛑 defaultValue="personal" ko hata kar niche wali lines likhein */}
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="w-full"
+        ref={tabsRef}
+      >
+        {" "}
         <TabsList className="grid w-full grid-cols-5 mb-4 bg-muted/50 p-1 rounded-xl h-auto border border-border/50 shadow-sm">
           <TabsTrigger
             value="personal"
-            className="flex items-center justify-center gap-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary/10 data-[state=active]:to-tertiary/10 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-primary/20 py-1.5 rounded-lg transition-all duration-300 hover:bg-accent/50">
-            
+            className="flex items-center justify-center gap-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary/10 data-[state=active]:to-tertiary/10 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-primary/20 py-1.5 rounded-lg transition-all duration-300 hover:bg-accent/50"
+          >
             <UserIcon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline text-xs font-medium">Personal</span>
+            <span className="hidden sm:inline text-xs font-medium">
+              Personal
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="security"
-            className="flex items-center justify-center gap-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary/10 data-[state=active]:to-tertiary/10 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-primary/20 py-1.5 rounded-lg transition-all duration-300 hover:bg-accent/50">
-            
+            className="flex items-center justify-center gap-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary/10 data-[state=active]:to-tertiary/10 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-primary/20 py-1.5 rounded-lg transition-all duration-300 hover:bg-accent/50"
+          >
             <LockIcon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline text-xs font-medium">Security</span>
+            <span className="hidden sm:inline text-xs font-medium">
+              Security
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="business"
-            className="flex items-center justify-center gap-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary/10 data-[state=active]:to-tertiary/10 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-primary/20 py-1.5 rounded-lg transition-all duration-300 hover:bg-accent/50">
-            
+            className="flex items-center justify-center gap-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary/10 data-[state=active]:to-tertiary/10 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-primary/20 py-1.5 rounded-lg transition-all duration-300 hover:bg-accent/50"
+          >
             <BriefcaseIcon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline text-xs font-medium">Business</span>
+            <span className="hidden sm:inline text-xs font-medium">
+              Business
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="payment"
-            className="flex items-center justify-center gap-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary/10 data-[state=active]:to-tertiary/10 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-primary/20 py-1.5 rounded-lg transition-all duration-300 hover:bg-accent/50">
-            
+            className="flex items-center justify-center gap-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary/10 data-[state=active]:to-tertiary/10 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-primary/20 py-1.5 rounded-lg transition-all duration-300 hover:bg-accent/50"
+          >
             <WalletIcon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline text-xs font-medium">Payment</span>
+            <span className="hidden sm:inline text-xs font-medium">
+              Payment
+            </span>
           </TabsTrigger>
           <TabsTrigger
             value="reviews"
-            className="flex items-center justify-center gap-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary/10 data-[state=active]:to-tertiary/10 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-primary/20 py-1.5 rounded-lg transition-all duration-300 hover:bg-accent/50">
-            
+            className="flex items-center justify-center gap-1.5 data-[state=active]:bg-gradient-to-br data-[state=active]:from-primary/10 data-[state=active]:to-tertiary/10 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-primary/20 py-1.5 rounded-lg transition-all duration-300 hover:bg-accent/50"
+          >
             <MessageSquareIcon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline text-xs font-medium">Reviews</span>
+            <span className="hidden sm:inline text-xs font-medium">
+              Reviews
+            </span>
           </TabsTrigger>
         </TabsList>
-
-        {/* TAB 1: Personal Information */}
+        {/* TAB 1: Personal */}
         <TabsContent value="personal" className="space-y-6">
-          {/* Profile Header Card */}
           <Card className="border-border shadow-md hover:shadow-lg transition-shadow duration-300">
             <CardHeader className="border-b border-border bg-gradient-to-r from-primary/5 via-tertiary/5 to-primary/5 py-2.5 space-y-0.5">
               <div className="flex items-center gap-2">
                 <UserIcon className="w-4 h-4 text-primary" />
                 <CardTitle className="text-base">Profile Information</CardTitle>
               </div>
-              <CardDescription className="text-xs">Update your personal details and profile picture</CardDescription>
+              <CardDescription className="text-xs">
+                Update your personal details and profile picture
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="flex flex-col md:flex-row gap-8 items-start">
-                {/* Avatar Section */}
+                {/* Avatar */}
                 <div className="flex flex-col items-center gap-4">
                   <div className="relative group">
                     <Avatar className="w-32 h-32 border-4 border-border shadow-lg">
-                      <AvatarImage src="https://c.animaapp.com/mhmjm5e0FqIvyc/img/ai_2.png" alt="Profile" />
-                      <AvatarFallback className="bg-gradient-1 text-primary-foreground text-3xl">JD</AvatarFallback>
+                      <AvatarImage src={avatarPreview} alt="Profile" />
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-tertiary text-primary-foreground text-3xl">
+                        {getInitials(user?.fullName)}
+                      </AvatarFallback>
                     </Avatar>
-                    <button className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:bg-primary/90 transition-colors"
+                    >
                       <CameraIcon className="w-5 h-5" />
                     </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleAvatarChange}
+                      className="hidden"
+                    />
                   </div>
+                  {avatarFile && (
+                    <Button
+                      size="sm"
+                      onClick={handleUploadAvatar}
+                      disabled={loading}
+                      className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      {loading ? "Uploading..." : "Upload Photo"}
+                    </Button>
+                  )}
                   <div className="text-center">
-                    <h3 className="text-xl font-semibold text-foreground">John Doe</h3>
-                    <div className="flex items-center justify-center gap-1 mt-2">
-                      {[1, 2, 3, 4, 5].map((star) =>
-                      <StarIcon
-                        key={star}
-                        className="w-4 h-4 fill-amber-400 text-amber-400" />
-
-                      )}
-                      <span className="ml-2 text-sm font-medium text-foreground">4.8</span>
-                    </div>
-                    <Badge className="mt-2 bg-green-100 text-green-700 border-green-200">
-                      Premium Member
+                    <h3 className="text-xl font-semibold text-foreground">
+                      {user?.fullName}
+                    </h3>
+                    <Badge className="mt-2 bg-blue-100 text-blue-700 border-blue-200 capitalize">
+                      {user?.membershipTier || "free"} Member
                     </Badge>
                   </div>
                 </div>
 
-                {/* Personal Details Form */}
+                {/* Form Fields */}
                 <div className="flex-1 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name <span className="text-destructive">*</span></Label>
+                      <Label>First Name *</Label>
                       <Input
-                        id="firstName"
-                        placeholder="John"
-                        defaultValue="John"
-                        required
-                        className="bg-background border-border" />
-                      
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                      />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="lastName">Last Name <span className="text-destructive">*</span></Label>
+                      <Label>Last Name *</Label>
                       <Input
-                        id="lastName"
-                        placeholder="Doe"
-                        defaultValue="Doe"
-                        required
-                        className="bg-background border-border" />
-                      
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                      />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-foreground font-medium">Email Address</Label>
+                    <Label>Email Address</Label>
                     <Input
-                      id="email"
                       type="email"
-                      defaultValue="john.doe@example.com"
+                      value={user?.email || ""}
                       disabled
-                      className="bg-muted/40 border-border text-foreground cursor-not-allowed font-medium" />
-                    
-                    <p className="text-xs text-primary mt-0.5 font-medium">
-                      Please contact support to update your email address.
+                      className="bg-muted/40 border-border cursor-not-allowed"
+                    />
+                    <p className="text-xs text-primary font-medium">
+                      Contact support to update email
                     </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number <span className="text-destructive">*</span></Label>
+                    <Label>Phone Number *</Label>
                     <div className="flex gap-2">
-                      <Select defaultValue="+1">
+                      <Select
+                        value={formData.phoneCode}
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({ ...prev, phoneCode: value }))
+                        }
+                      >
                         <SelectTrigger className="w-24 bg-background border-border">
                           <SelectValue />
                         </SelectTrigger>
@@ -203,21 +538,32 @@ export function ProfileSection({ onBack }) {
                           <SelectItem value="+1">+1</SelectItem>
                           <SelectItem value="+44">+44</SelectItem>
                           <SelectItem value="+91">+91</SelectItem>
+                          <SelectItem value="+92">+92</SelectItem>
                         </SelectContent>
                       </Select>
                       <Input
-                        id="phone"
                         placeholder="(555) 123-4567"
-                        defaultValue="(555) 123-4567"
-                        className="flex-1 bg-background border-border" />
-                      
+                        value={formData.phone}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            phone: e.target.value,
+                          })
+                        }
+                        className="flex-1 bg-background border-border"
+                      />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label htmlFor="timezone">Time Zone</Label>
-                      <Select defaultValue="utc-5">
+                      <Label>Time Zone</Label>
+                      <Select
+                        value={formData.timezone}
+                        onValueChange={(value) =>
+                          setFormData((prev) => ({ ...prev, timezone: value }))
+                        }
+                      >
                         <SelectTrigger className="bg-background border-border">
                           <SelectValue />
                         </SelectTrigger>
@@ -225,47 +571,37 @@ export function ProfileSection({ onBack }) {
                           <SelectItem value="utc-5">UTC-5 (EST)</SelectItem>
                           <SelectItem value="utc-8">UTC-8 (PST)</SelectItem>
                           <SelectItem value="utc+0">UTC+0 (GMT)</SelectItem>
-                          <SelectItem value="utc+5:30">UTC+5:30 (IST)</SelectItem>
+                          <SelectItem value="utc+5:30">
+                            UTC+5:30 (IST)
+                          </SelectItem>
+                          <SelectItem value="utc+5">UTC+5 (PKT)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="currency" className="text-foreground font-medium">Account Currency</Label>
+                      <Label>Currency</Label>
                       <Input
-                        id="currency"
-                        defaultValue="USD ($)"
+                        value={formData.currency || "USD"}
                         disabled
-                        className="bg-muted/40 border-border text-foreground cursor-not-allowed font-medium" />
-                      
+                        className="bg-muted/40 border-border cursor-not-allowed"
+                      />
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-border">
-                <Button
-                  variant="outline"
-                  className="border-border hover:bg-accent hover:border-primary/30 transition-all duration-300"
-                  onClick={onBack}>
-                  
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <Button variant="outline" onClick={onBack} disabled={loading}>
                   Cancel
                 </Button>
-                <Button className="bg-gradient-1 text-primary-foreground hover:opacity-90 shadow-md hover:shadow-lg transition-all duration-300">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Save Changes
+                <Button onClick={handleSavePersonal} disabled={loading}>
+                  {loading ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* TAB 2: Password & Security */}
+        {/* TAB 2: Security */}
         <TabsContent value="security" className="space-y-6">
           <Card className="border-border shadow-md hover:shadow-lg transition-shadow duration-300">
             <CardHeader className="border-b border-border bg-gradient-to-r from-primary/5 via-tertiary/5 to-primary/5 py-2.5 space-y-0.5">
@@ -273,95 +609,71 @@ export function ProfileSection({ onBack }) {
                 <LockIcon className="w-4 h-4 text-primary" />
                 <CardTitle className="text-base">Password & Security</CardTitle>
               </div>
-              <CardDescription className="text-xs">Update your password to keep your account secure</CardDescription>
+              <CardDescription className="text-xs">
+                Update your password to keep your account secure
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="max-w-2xl space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="currentPassword"
-                      type={showCurrentPassword ? "text" : "password"}
-                      placeholder="Enter current password"
-                      className="bg-background border-border pr-10" />
-                    
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      
-                      {showCurrentPassword ?
-                      <EyeOffIcon className="w-4 h-4" /> :
-
-                      <EyeIcon className="w-4 h-4" />
-                      }
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="newPassword"
-                      type={showNewPassword ? "text" : "password"}
-                      placeholder="Enter new password"
-                      className="bg-background border-border pr-10" />
-                    
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      
-                      {showNewPassword ?
-                      <EyeOffIcon className="w-4 h-4" /> :
-
-                      <EyeIcon className="w-4 h-4" />
-                      }
-                    </button>
-                  </div>
-                  {/* Password Strength Indicator */}
-                  <div className="space-y-2 mt-3">
-                    <div className="flex gap-1">
-                      <div className="h-1 flex-1 rounded-full bg-red-500"></div>
-                      <div className="h-1 flex-1 rounded-full bg-amber-500"></div>
-                      <div className="h-1 flex-1 rounded-full bg-gray-200"></div>
-                      <div className="h-1 flex-1 rounded-full bg-gray-200"></div>
+                {[
+                  {
+                    label: "Current Password",
+                    key: "currentPassword",
+                    show: showCurrentPassword,
+                    toggle: () => setShowCurrentPassword(!showCurrentPassword),
+                    placeholder: "Enter current password",
+                  },
+                  {
+                    label: "New Password",
+                    key: "newPassword",
+                    show: showNewPassword,
+                    toggle: () => setShowNewPassword(!showNewPassword),
+                    placeholder: "Enter new password",
+                  },
+                  {
+                    label: "Confirm New Password",
+                    key: "confirmPassword",
+                    show: showConfirmPassword,
+                    toggle: () => setShowConfirmPassword(!showConfirmPassword),
+                    placeholder: "Confirm new password",
+                  },
+                ].map(({ label, key, show, toggle, placeholder }) => (
+                  <div className="space-y-2" key={key}>
+                    <Label>{label}</Label>
+                    <div className="relative">
+                      <Input
+                        type={show ? "text" : "password"}
+                        placeholder={placeholder}
+                        value={passwordForm[key]}
+                        onChange={(e) =>
+                          setPasswordForm({
+                            ...passwordForm,
+                            [key]: e.target.value,
+                          })
+                        }
+                        className="bg-background border-border pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={toggle}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {show ? (
+                          <EyeOffIcon className="w-4 h-4" />
+                        ) : (
+                          <EyeIcon className="w-4 h-4" />
+                        )}
+                      </button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Password strength: <span className="text-amber-600 font-medium">Medium</span>
-                    </p>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Confirm new password"
-                      className="bg-background border-border pr-10" />
-                    
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                      
-                      {showConfirmPassword ?
-                      <EyeOffIcon className="w-4 h-4" /> :
-
-                      <EyeIcon className="w-4 h-4" />
-                      }
-                    </button>
-                  </div>
-                </div>
+                ))}
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-blue-900 mb-2">Password Requirements:</h4>
+                  <h4 className="text-sm font-medium text-blue-900 mb-2">
+                    Password Requirements:
+                  </h4>
                   <ul className="text-xs text-blue-800 space-y-1">
-                    <li>• At least 8 characters long</li>
+                    <li>• At least 8 characters</li>
                     <li>• Contains uppercase and lowercase letters</li>
                     <li>• Includes at least one number</li>
                     <li>• Contains at least one special character</li>
@@ -369,114 +681,121 @@ export function ProfileSection({ onBack }) {
                 </div>
               </div>
 
-              {/* Action Buttons */}
               <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-border">
-                <Button
-                  variant="outline"
-                  className="border-border hover:bg-accent hover:border-primary/30 transition-all duration-300"
-                  onClick={onBack}>
-                  
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <Button variant="outline" onClick={onBack} disabled={loading}>
                   Cancel
                 </Button>
-                <Button className="bg-gradient-1 text-primary-foreground hover:opacity-90 shadow-md hover:shadow-lg transition-all duration-300">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Update Password
+                <Button onClick={handleSavePassword} disabled={loading}>
+                  {loading ? "Updating..." : "Update Password"}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* TAB 3: Business Information */}
+        {/* TAB 3: Business */}
         <TabsContent value="business" className="space-y-6">
           <Card className="border-border shadow-md hover:shadow-lg transition-shadow duration-300">
             <CardHeader className="border-b border-border bg-gradient-to-r from-primary/5 via-tertiary/5 to-primary/5 py-2.5 space-y-0.5">
               <div className="flex items-center gap-2">
                 <BriefcaseIcon className="w-4 h-4 text-primary" />
-                <CardTitle className="text-base">Business Information</CardTitle>
+                <CardTitle className="text-base">
+                  Business Information
+                </CardTitle>
               </div>
-              <CardDescription className="text-xs">Manage your company details and registration status</CardDescription>
+              <CardDescription className="text-xs">
+                Manage your company details
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-6">
               <div className="space-y-6">
-                {/* Registration Status - Only show for publishers if verified */}
-                {isPublisher && isBusinessVerified &&
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+                {isPublisher && isBusinessVerified && (
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
                     <CheckCircleIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <h4 className="text-sm font-semibold text-green-900 mb-1">Company Verified</h4>
-                      <p className="text-xs text-green-700">Your business registration has been verified and approved.</p>
+                      <h4 className="text-sm font-semibold text-green-900 mb-1">
+                        Company Verified
+                      </h4>
+                      <p className="text-xs text-green-700">
+                        Your business has been verified and approved.
+                      </p>
                     </div>
-                    <Badge className="bg-green-600 text-white border-0">Verified</Badge>
+                    <Badge className="bg-green-600 text-white border-0">
+                      Verified
+                    </Badge>
                   </div>
-                }
+                )}
 
-                {/* Business Details Form */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="companyName">
-                      Company Name{isPublisher && <span className="text-destructive ml-1">*</span>}
-                    </Label>
+                    <Label>Company Name {isPublisher && "*"}</Label>
                     <Input
-                      id="companyName"
                       placeholder="Acme Corporation"
-                      defaultValue="Acme Corporation"
+                      value={businessForm.companyName}
+                      onChange={(e) =>
+                        setBusinessForm({
+                          ...businessForm,
+                          companyName: e.target.value,
+                        })
+                      }
                       className="bg-background border-border"
-                      required={isPublisher} />
-                    
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="regNumber">
-                      Registration Number{isPublisher && <span className="text-destructive ml-1">*</span>}
-                    </Label>
+                    <Label>Registration Number {isPublisher && "*"}</Label>
                     <Input
-                      id="regNumber"
                       placeholder="REG-123456"
-                      defaultValue="REG-123456"
+                      value={businessForm.regNumber}
+                      onChange={(e) =>
+                        setBusinessForm({
+                          ...businessForm,
+                          regNumber: e.target.value,
+                        })
+                      }
                       className="bg-background border-border"
-                      required={isPublisher} />
-                    
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="vatNumber">
-                    VAT Number{isPublisher && <span className="text-destructive ml-1">*</span>}
-                  </Label>
+                  <Label>VAT Number {isPublisher && "*"}</Label>
                   <Input
-                    id="vatNumber"
                     placeholder="VAT-789012"
-                    defaultValue="VAT-789012"
+                    value={businessForm.vatNumber}
+                    onChange={(e) =>
+                      setBusinessForm({
+                        ...businessForm,
+                        vatNumber: e.target.value,
+                      })
+                    }
                     className="bg-background border-border"
-                    required={isPublisher} />
-                  
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="businessAddress">
-                    Business Address{isPublisher && <span className="text-destructive ml-1">*</span>}
-                  </Label>
+                  <Label>Business Address {isPublisher && "*"}</Label>
                   <Textarea
-                    id="businessAddress"
-                    placeholder="Enter your complete business address"
-                    defaultValue="123 Business Street, Suite 100"
+                    placeholder="Enter your business address"
+                    value={businessForm.address}
+                    onChange={(e) =>
+                      setBusinessForm({
+                        ...businessForm,
+                        address: e.target.value,
+                      })
+                    }
                     rows={3}
                     className="bg-background border-border resize-none"
-                    required={isPublisher} />
-                  
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="country">
-                      Country{isPublisher && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                    <Select defaultValue="us" required={isPublisher}>
+                    <Label>Country {isPublisher && "*"}</Label>
+                    <Select
+                      value={businessForm.country}
+                      onValueChange={(value) =>
+                        setBusinessForm({ ...businessForm, country: value })
+                      }
+                    >
                       <SelectTrigger className="bg-background border-border">
                         <SelectValue />
                       </SelectTrigger>
@@ -485,75 +804,53 @@ export function ProfileSection({ onBack }) {
                         <SelectItem value="uk">United Kingdom</SelectItem>
                         <SelectItem value="ca">Canada</SelectItem>
                         <SelectItem value="au">Australia</SelectItem>
+                        <SelectItem value="pk">Pakistan</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="city">
-                      City{isPublisher && <span className="text-destructive ml-1">*</span>}
-                    </Label>
+                    <Label>City {isPublisher && "*"}</Label>
                     <Input
-                      id="city"
                       placeholder="New York"
-                      defaultValue="New York"
+                      value={businessForm.city}
+                      onChange={(e) =>
+                        setBusinessForm({
+                          ...businessForm,
+                          city: e.target.value,
+                        })
+                      }
                       className="bg-background border-border"
-                      required={isPublisher} />
-                    
+                    />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="postalCode">
-                      Postal Code{isPublisher && <span className="text-destructive ml-1">*</span>}
-                    </Label>
+                    <Label>Postal Code {isPublisher && "*"}</Label>
                     <Input
-                      id="postalCode"
                       placeholder="10001"
-                      defaultValue="10001"
+                      value={businessForm.postalCode}
+                      onChange={(e) =>
+                        setBusinessForm({
+                          ...businessForm,
+                          postalCode: e.target.value,
+                        })
+                      }
                       className="bg-background border-border"
-                      required={isPublisher} />
-                    
+                    />
                   </div>
                 </div>
-
-                {/* Document Upload - Only show if NOT verified */}
-                {!isBusinessVerified &&
-                <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-primary/50 transition-colors cursor-pointer">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <PlusIcon className="w-6 h-6 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Upload Company Documents</p>
-                        <p className="text-xs text-muted-foreground mt-1">PDF, JPG, PNG up to 10MB</p>
-                      </div>
-                    </div>
-                  </div>
-                }
               </div>
 
-              {/* Action Buttons */}
               <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-border">
-                <Button
-                  variant="outline"
-                  className="border-border hover:bg-accent hover:border-primary/30 transition-all duration-300"
-                  onClick={onBack}>
-                  
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                <Button variant="outline" onClick={onBack} disabled={loading}>
                   Cancel
                 </Button>
-                <Button className="bg-gradient-1 text-primary-foreground hover:opacity-90 shadow-md hover:shadow-lg transition-all duration-300">
-                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Save Business Information
+                <Button onClick={handleSaveBusiness} disabled={loading}>
+                  {loading ? "Saving..." : "Save Business Info"}
                 </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* TAB 4: Withdrawal & Payment Methods */}
+        {/* TAB 4: Payment */}
         <TabsContent value="payment" className="space-y-6">
           <Card className="border-border shadow-md hover:shadow-lg transition-shadow duration-300">
             <CardHeader className="border-b border-border bg-gradient-to-r from-primary/5 via-tertiary/5 to-primary/5 py-2.5 space-y-0.5">
@@ -699,7 +996,7 @@ export function ProfileSection({ onBack }) {
           </Card>
         </TabsContent>
         {/* TAB 5: Reviews */}
-        <TabsContent value="reviews" className="space-y-6">
+       <TabsContent value="reviews" className="space-y-6">
           {/* Publisher Reviews — only shown to publishers */}
           {isPublisher && <Card className="border-border shadow-md hover:shadow-lg transition-shadow duration-300">
             <CardHeader className="border-b border-border bg-gradient-to-r from-primary/5 via-tertiary/5 to-primary/5 py-2.5 space-y-0.5">
@@ -814,8 +1111,7 @@ export function ProfileSection({ onBack }) {
             </CardContent>
           </Card>}
         </TabsContent>
-
       </Tabs>
-    </div>);
-
+    </div>
+  );
 }

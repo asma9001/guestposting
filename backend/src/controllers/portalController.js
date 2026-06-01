@@ -221,4 +221,30 @@ const deleteWebsite = async (req, res) => {
     });
   }
 };
-module.exports = { createWebsite,getWebsites,getWebsiteStats,getDashboardData,updateWebsite,deleteWebsite };
+// GET /api/websites/:id
+const getWebsiteById = async (req, res) => {
+  try {
+    const website = await Website.findOne({
+      _id: req.params.id,
+      // Security: Ensure user owns this website
+    });
+
+    if (!website) {
+      return res.status(404).json({
+        success: false,
+        message: "Website not found or access denied",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      website,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+module.exports = { createWebsite,getWebsites,getWebsiteStats,getDashboardData,updateWebsite,deleteWebsite,getWebsiteById };

@@ -26,6 +26,7 @@ import {
 'lucide-react';
 import { cn } from '@/lib/utils';
 import { gsap } from 'gsap';
+import { useUserStore } from '../../stores/userStore';
 
 const EMOJI_LIST = [
 '😀', '😂', '😍', '🥰', '😎', '🤔', '😅', '🙏', '👍', '👎',
@@ -54,7 +55,7 @@ export function ChatWindow({ className, onBack, onPublisherClick }) {
   const messagesEndRef = useRef(null);
   const emojiRef = useRef(null);
   const moreMenuRef = useRef(null);
-
+const {user} = useUserStore();
   // Close emoji picker on outside click
   useEffect(() => {
     function handleClick(e) {
@@ -120,8 +121,8 @@ export function ChatWindow({ className, onBack, onPublisherClick }) {
   };
 
   // Mock current user data (in a real app, this would come from userStore)
-  const currentUserAvatar = "https://c.animaapp.com/mhmjm5e0FqIvyc/img/ai_2.png";
-  const currentUserName = "John Doe";
+  const currentUserAvatar = user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || 'User')}&background=random`;
+  const currentUserName = user?.fullName || 'John Doe';
 
   const conversation = conversations.find((c) => c.id === selectedConversationId);
 

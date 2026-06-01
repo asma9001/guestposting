@@ -110,38 +110,45 @@ export function SupportCenter() {
     setAttachedFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    if (!validateForm()) return;
+  try {
+    // 1. JSON ke bajaye FormData ka instance banayein
+    const formData = new FormData();
+    
+    // 2. Apne normal text fields append karein
+    formData.append('subject', subject);
+    formData.append('category', category);
+    formData.append('priority', priority);
+    if (relatedUrl) formData.append('relatedUrl', relatedUrl);
+    formData.append('message', message);
 
-    try {
-      const newTicket = await createTicket({
-        subject,
-        category,
-        priority,
-        relatedUrl: relatedUrl || undefined,
-        message,
-      });
+    // 3. Apni attached files ko loop chala kar append karein
+    attachedFiles.forEach((file) => {
+      formData.append('attachments', file); // 'attachments' aapka backend field name hoga
+    });
 
+    // 4. Poora formData object apne store function ko pass karein
+    const newTicket = await createTicket(formData);
 
-      setSelectedTicket(newTicket);
-      setSubject('');
-      setCategory('');
-      setPriority('');
-      setRelatedUrl('');
-      setMessage('');
-      setAttachedFiles([]);
-      setErrors({});
-  
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 5000);
+    // State reset logic (Aapka purana code)
+    setSelectedTicket(newTicket);
+    setSubject('');
+    setCategory('');
+    setPriority('');
+    setRelatedUrl('');
+    setMessage('');
+    setAttachedFiles([]);
+    setErrors({});
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 5000);
 
-    } catch (err) {
-      console.error(err);
-    }
-
-  };
+  } catch (err) {
+    console.error("Ticket submission failed:", err);
+  }
+};
 
   const getStatusBadge = (status) => {
     const config = {
@@ -155,7 +162,10 @@ export function SupportCenter() {
     return <Badge className={className}>{label}</Badge>;
   };
 
-  const getPriorityBadge = (priority) => {
+const getPriorityBadge = (priority) => {
+    // Pehle handle karein agar priority missing ya kisi aur case mein ho
+    const normalizedPriority = priority ? priority.toLowerCase() : 'low';
+
     const config = {
       low: { label: 'Low', className: 'bg-gray-50 text-gray-700 border-gray-200' },
       medium: { label: 'Medium', className: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -163,14 +173,23 @@ export function SupportCenter() {
       urgent: { label: 'Urgent', className: 'bg-red-50 text-red-700 border-red-200' }
     };
 
-    const { label, className } = config[priority];
-    return <Badge className={className}>{label}</Badge>;
+    // Fallback: Agar exact match na mile, to 'low' ya koi default styling use karein
+    const badge = config[normalizedPriority] || config.low;
+    
+    return <Badge className={badge.className}>{badge.label}</Badge>;
   };
 
-  const filteredTickets = tickets.filter((ticket) => {
-    const matchesSearch =
+const filteredTickets = tickets.filter((ticket) => {
+    // 1. Raw ID ya Subject check karein
+    const matchesRawIdOrSubject =
       ticket._id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       ticket.subject.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // 2. Choti Visual ID (jaise 'TCK-A1B2' ya sirf 'A1B2') generate karke check karein
+    const visualId = `TCK-${ticket._id.substring(ticket._id.length - 4).toUpperCase()}`;
+    const matchesVisualId = visualId.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesSearch = matchesRawIdOrSubject || matchesVisualId;
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
 
     return matchesSearch && matchesStatus;
@@ -447,8 +466,9 @@ export function SupportCenter() {
                         onClick={() => setSelectedTicket(ticket)}>
 
                         <td className="py-3 px-3 text-sm font-mono font-semibold text-foreground">
-                          {ticket._id}
-                        </td>
+TCK-{ticket._id.substring(ticket._id.length - 4).toUpperCase()}
+
+</td>
                         <td className="py-3 px-3">
                           <p className="text-sm font-medium text-foreground">{ticket.subject}</p>
                         </td>

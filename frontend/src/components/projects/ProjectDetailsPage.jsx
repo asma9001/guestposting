@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import {
@@ -54,7 +55,7 @@ import { cn } from "@/lib/utils";
 
 
 export function ProjectDetailsPage({ projectId, onBack }) {
-  const { getProject } = useProjectStore();
+  const { getProject ,updateProject} = useProjectStore();
   const { orders } = useDashboardStore();
   const project = getProject(projectId);
   const [activeTab, setActiveTab] = useState('overview');
@@ -63,16 +64,18 @@ export function ProjectDetailsPage({ projectId, onBack }) {
   const [sensitiveTopicPopoverOpen, setSensitiveTopicPopoverOpen] = useState(false);
   const [languagePopoverOpen, setLanguagePopoverOpen] = useState(false);
   const [countryPopoverOpen, setCountryPopoverOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); 
   const [editFormData, setEditFormData] = useState({
     name: project?.name || '',
     targetWebsite: project?.targetWebsite || '',
     categories: project?.categories || [],
     sensitiveTopics: project?.sensitiveTopics || [],
-    projectObject: project?.purpose || '',
+    projectObject: project?.projectObject || '',
     languages: project?.languages || [],
     countries: project?.countries || [],
     publishInstructions: project?.publishInstructions || ''
   });
+  console.log("🚀 ProjectDetailsPage rendered with project:", project);
   const [targetPages, setTargetPages] = useState(
     project?.targetPages && project.targetPages.length > 0 ?
     project.targetPages :
@@ -102,7 +105,28 @@ export function ProjectDetailsPage({ projectId, onBack }) {
     tp.id === id ? { ...tp, [field]: value } : tp
     ));
   };
+const handleEditToggle = async () => {
+    if (isEditMode) {
+      setIsSaving(true);
+      
+      // Data compilation dynamically matched with controller structure
+      const payload = {
+        ...editFormData,
+        targetPages: targetPages.map(({ anchor, url }) => ({ anchor, url })) // cleaning up dynamic IDs if backend doesn't need them
+      };
 
+      const result = await updateProject(projectId, payload);
+      setIsSaving(false);
+      
+      if (result?.success) {
+        setIsEditMode(false);
+      } else {
+        alert(result?.message || "Failed to update project data.");
+      }
+    } else {
+      setIsEditMode(true);
+    }
+  };
   if (!project) return <div>Project not found</div>;
 
   // Filter orders for this project (mock - in real app would filter by projectId)
@@ -161,9 +185,9 @@ export function ProjectDetailsPage({ projectId, onBack }) {
               </Badge>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="font-mono text-xs">{project.id}</span>
+              <span className="font-mono text-xs">PRG-{project._id.substring(project._id.length - 4).toUpperCase()}</span>
               <span>•</span>
-              <span>{project.purpose}</span>
+              <span>{project.projectObject}</span>
             </div>
           </div>
         </div>
@@ -203,7 +227,9 @@ export function ProjectDetailsPage({ projectId, onBack }) {
             {/* Edit Button */}
             <div className="flex justify-end mb-2">
               <Button
-                onClick={() => setIsEditMode(!isEditMode)}
+              onClick={handleEditToggle}
+                disabled={isSaving}
+                
                 variant={isEditMode ? "default" : "outline"}
                 className="h-8">
                 
@@ -282,7 +308,7 @@ export function ProjectDetailsPage({ projectId, onBack }) {
                       </SelectContent>
                     </Select> :
 
-                  <p className="text-sm text-muted-foreground">{project.purpose}</p>
+                  <p className="text-sm text-muted-foreground">{project.projectObject}</p>
                   }
                 </div>
                 <div className="space-y-2">

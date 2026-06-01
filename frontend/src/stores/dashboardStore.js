@@ -50,6 +50,7 @@ import { create } from 'zustand';
 
 
 export const useDashboardStore = create((set) => ({
+  
   sidebarCollapsed: false,
   mobileMenuOpen: false,
   searchQuery: '',

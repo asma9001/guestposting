@@ -1,20 +1,30 @@
 const express = require('express');
 const router = express.Router();
 
-const { signup, login, getMe } = require('../controllers/authController');
-const { protect } = require('../middleware/authMiddleware');
-const { validateSignup, validateLogin, validateRefreshToken } = require('../middleware/validators');
+const {
+  signup,
+  login,
+  getUserByID,
+ 
+ 
+ 
+} = require('../controllers/authController');
 
-// ─── Public routes ─────────────────────────────────────────────────────────
-// POST /api/auth/signup
-router.post('/signup', validateSignup, signup);
+const {protect} = require('../middleware/authMiddleware'); // your JWT middleware
+const upload = require('../middleware/upload'); // for avatar upload
 
-// POST /api/auth/login
-router.post('/login', validateLogin, login);
+// ================= AUTH =================
+router.post('/signup', signup);
+router.post('/login', login);
+
+// ================= PROFILE =================
+router.get('/me/:id', protect, getUserByID);
+// Me
+router.get("/me", protect, async (req, res) => {
+  res.status(200).json(req.user);
+});
 
 
 
-// GET /api/auth/me
-router.get('/me', protect, getMe);
 
 module.exports = router;

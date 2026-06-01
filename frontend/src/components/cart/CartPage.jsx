@@ -52,7 +52,7 @@ export function CartPage({ onNavigate } = {}) {
   const [selectedItems, setSelectedItems] = useState(() =>
   Object.fromEntries(items.map((i) => [i.id, false]))
   );
-
+console.log("🚀 CartPage rendered with items:", items, "selectedItems:", selectedItems, "itemErrors:", itemErrors);
   // Keep selectedItems in sync when cart items change (new item added = unselected)
   // Also auto-select an item when its writingOption is filled
   useEffect(() => {
@@ -242,7 +242,7 @@ export function CartPage({ onNavigate } = {}) {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-lg font-bold text-foreground">${item.basePrice}</p>
+                      <p className="text-lg font-bold text-foreground">${item.priceNormal}</p>
                       <button
                       onClick={() => removeItem(item.id)}
                       className="group/remove flex items-center justify-end gap-1 text-[10px] font-medium text-muted-foreground hover:text-destructive mt-0.5 ml-auto transition-colors">
@@ -286,7 +286,7 @@ export function CartPage({ onNavigate } = {}) {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="standard">Standard</SelectItem>
-                          <SelectItem value="sensitive">Sensitive Topic (+${item.sensitivePrice})</SelectItem>
+                          <SelectItem value="sensitive">Sensitive Topic (+${item.priceSensitive})</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -339,7 +339,7 @@ export function CartPage({ onNavigate } = {}) {
                           <div className="flex items-center justify-between mb-0.5">
                             <div className="flex items-center gap-1.5">
                               <span className="text-xs font-semibold text-foreground">Outsource Writing</span>
-                              <span className="bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded">+${item.writingPrice}</span>
+                              <span className="bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded">+${item.priceCopywriting}</span>
                             </div>
                             {item.writingOption === 'outsource' ?
                           isOutsourceFilled(item) ?

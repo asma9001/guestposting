@@ -315,9 +315,12 @@ const handleDelete = async (id) => {
   }
 if (loading) {
   return (
-    <div className="flex items-center justify-center py-20">
-      <p className="text-muted-foreground">Loading websites...</p>
-    </div>
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg className="animate-spin w-8 h-8 text-primary" viewBox="0 0 24 24" fill="none">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+        </svg>
+      </div>
   );
 }
   return (
@@ -461,8 +464,8 @@ if (loading) {
         </div>
 
         {/* Portals List */}
-        <div ref={containerRef} className="divide-y divide-border">
-           {currentPortals.map((portal) =>
+         <div ref={containerRef} className="divide-y divide-border">
+          {currentPortals.map((portal) =>
           <div key={portal.id} className="group/row p-6 hover:bg-muted/20 transition-colors duration-200">
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
@@ -609,17 +612,17 @@ if (loading) {
                 </div>
 
                 {/* Column 4: Insights (2 cols) */}
-                <div className="lg:col-span-2 space-y-2 border-t lg:border-t-0 lg:border-l border-border pt-3 lg:pt-0 lg:pl-6">
+                <div className="lg:col-span-2 space-y-2 border-t lg:border-t-0 lg:border-l border-border pt-3 lg:pt-0 lg:pl-4">
                   <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 lg:hidden">Insights</h4>
                   
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Live / Not Live</span>
-                    <div className="text-xs font-medium">
-                      <span className="text-emerald-600">{portal.insights.liveNotLive.live}</span>
-                      <span className="text-muted-foreground mx-1">/</span>
-                      <span className="text-rose-600">{portal.insights.liveNotLive.notLive}</span>
-                    </div>
-                  </div>
+         <div className="flex flex-row justify-between items-center">
+  <span className="text-xs text-muted-foreground">Live / Not Live</span>
+  <div className="text-xs font-medium">
+    <span className="text-emerald-600">{portal.insights.liveNotLive.live}</span>
+    <span className="text-muted-foreground mx-1">/</span>
+    <span className="text-rose-600">{portal.insights.liveNotLive.notLive}</span>
+  </div>
+</div>
 
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-[10px]">
@@ -630,7 +633,7 @@ if (loading) {
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-xs text-muted-foreground">Avg Publish Time</span>
+                    <span className="text-xs ">Avg Publish Time</span>
                     <span className="text-xs font-medium text-foreground">{portal.insights.avgPublishTime}</span>
                   </div>
                 </div>

@@ -1,255 +1,171 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { authApi, setTokens, clearTokens, getAccessToken } from '@/lib/api';
-import axios from 'axios';
-
-const API = '/api/user';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+import api, { authApi, setTokens, clearTokens, getAccessToken } from "@/lib/api";
+import { useSupportStore } from "@/stores/supportStore"; // 🔥 Safe connection for tickets data
 
 export const useUserStore = create()(
   persist(
     (set, get) => ({
       // ── STATE ──
-      role: 'advertiser',
+      role: "advertiser", // Default fallback role
       user: null,
+      fullName: "",
       isLoading: false,
       error: null,
+      errorMessage: null,
 
       switchRole: (role) => set({ role }),
 
-      // ── LOGIN ──
+      // ── LOGIN (Optimized & Fixed Role Sync) ──
       login: async ({ email, password }) => {
         set({ isLoading: true, error: null });
+
         try {
           const res = await authApi.login({ email, password });
+
+          // 1. LocalStorage mein token save karein
           setTokens(res.token);
-          set({
-            user: { id: res.userId, role: res.userRole, email },
-            role: res.userRole,
-            isLoading: false,
-          });
-          // Full profile fetch karo login ke baad
-          await get().fetchProfile();
-          return { success: true, role: res.userRole };
+          console.log("✅ TOKEN SET IN LOCALSTORAGE:", res.token);
+
+          // 2. Interceptor ke data fetch karne se pehle defaults update karein
+          api.defaults.headers.common["Authorization"] = `Bearer ${res.token}`;
+
+          console.log("🔄 Fetching user profile details...");
+          
+          // 3. Profile data fetch karein (Iske andar set() laga hua hai jo role update karega)
+          const profile = await get().fetchProfile();
+          
+          // 4. Background mein bina delay ke tickets fetch karwadein naye token ke sath
+          try {
+            await useSupportStore.getState().getTickets();
+          } catch (ticketErr) {
+            console.error("⚠️ Background ticket fetch failed but login proceeding:", ticketErr);
+          }
+
+          set({ isLoading: false });
+          
+          // Profile update hone ke baad response return karein taaki layout change ho sake
+          return { 
+            success: true, 
+            token: res.token, 
+            role: profile?.role || "advertiser" 
+          };
+
         } catch (err) {
-          set({ isLoading: false, error: err?.message || 'Login failed' });
+          console.error("❌ Login action sequence failed:", err);
+          set({ 
+            isLoading: false, 
+            error: err.response?.data?.message || err?.message || "Login failed" 
+          });
           return { success: false, error: err };
         }
       },
 
       // ── SIGNUP ──
-      signup: async ({ fullName, email, password, role }) => {
-        set({ isLoading: true, error: null });
-        try {
-          const res = await authApi.signup({ fullName, email, password, role });
-          setTokens(res.token);
-          set({
-            user: { id: res.userId, role: res.userRole, email },
-            role: res.userRole,
-            isLoading: false,
-          });
-          await get().fetchProfile();
-          return { success: true };
-        } catch (err) {
-          set({ isLoading: false, error: err?.message || 'Signup failed' });
-          return { success: false, error: err };
-        }
-      },
+    signup: async (credentials) => {
+  set({ isLoading: true, error: null });
+  try {
+    const res = await authApi.signup(credentials);
+    
+    // Sirf token set karein
+    setTokens(res.token);
+    api.defaults.headers.common["Authorization"] = `Bearer ${res.token}`;
+    
+    set({ isLoading: false });
+    // Sirf success return karein, profile fetch yahan na karein
+    return { success: true, token: res.token, role: credentials.role };
+  } catch (err) {
+    set({ isLoading: false, error: err.response?.data?.message });
+    return { success: false, error: err };
+  }
+},
 
-      // ── LOGOUT ──
+      // ── LOGOUT (Clean and Reset Everything) ──
       logout: () => {
         clearTokens();
-        set({ user: null, role: 'advertiser', error: null });
+        // Authorization header ko hamesha ke liye delete karein
+        delete api.defaults.headers.common["Authorization"];
+        set({ user: null, role: "advertiser", error: null, errorMessage: null });
+        localStorage.removeItem("user-storage");
       },
 
-      // ── RESTORE SESSION ──
-      restoreSession: async () => {
-        const token = getAccessToken();
-        if (!token) return;
-        try {
-          set({ isLoading: true });
-          await get().fetchProfile();
-        } catch (err) {
-          set({ user: null, role: 'advertiser', isLoading: false });
-        }
-      },
+      // ── SMART RESTORE SESSION ──
+     // ── SMART RESTORE SESSION (FIXED) ──
+restoreSession: async () => {
+  const token = getAccessToken();
+  if (!token) {
+    // Agar token hi nahi hai, to state ko clear karein taaki purana cache clean ho jaye
+    set({ user: null, role: "advertiser", isLoading: false });
+    return;
+  }
 
-      // ── FETCH FULL PROFILE ──
+  try {
+    set({ isLoading: true });
+    // Hamesha fresh profile fetch karein taaki active logged-in account ka data hi load ho
+    await get().fetchProfile();
+  } catch (err) {
+    console.error("❌ Session restoration failed:", err);
+    set({ user: null, role: "advertiser", isLoading: false });
+  }
+},
+
+      // ── FETCH FULL PROFILE (Atomic Updates) ──
       fetchProfile: async () => {
+        console.log("🚀 fetchProfile CALLED");
         try {
-          const token = getAccessToken();
-          const res = await axios.get('/api/auth/me', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const u = res.data.data.user;
+          const res = await api.get("/api/auth/me");
+          console.log("✅ Profile data fetched from server:", res.data);
+
+          const u = res.data?.data?.user || res.data?.user || res.data;
+
+          if (!u || typeof u !== "object") {
+            throw new Error("Could not find user object structure in payload.");
+          }
+
+          const updatedRole = u.role || "advertiser";
+
+          // 🚨 CRITICAL FIX: Pure object ko ek sath set karein taaki persist middleware 
+          // direct changes ko detect karke local storage mein likh de.
           set({
             user: {
-              id: u._id,
-              fullName: u.fullName,
-              email: u.email,
-              role: u.role,
-              avatar: u.avatar,
-              phone: u.phone,
-              phoneCode: u.phoneCode,
-              timezone: u.timezone,
-              walletBalance: u.walletBalance,
-              onHoldAmount: u.onHoldAmount,
-              awaitingClearanceAmount: u.awaitingClearanceAmount,
-              membershipTier: u.membershipTier,
-              business: u.business,
-              paymentMethods: u.paymentMethods,
-              averageRating: u.averageRating,
-              totalReviews: u.totalReviews,
+              id: u._id || u.id, 
+              fullName: u.fullName || "",
+              email: u.email || "",
+              role: updatedRole,
+              avatar: u.avatar || "",
+              phone: u.phone || "",
+              phoneCode: u.phoneCode || "",
+              timezone: u.timezone || "",
+              walletBalance: u.walletBalance ?? 0,
+              onHoldAmount: u.onHoldAmount ?? 0,
+              awaitingClearanceAmount: u.awaitingClearanceAmount ?? 0,
+              membershipTier: u.membershipTier || "",
+              business: u.business || null,
+              paymentMethods: u.paymentMethods || [],
+              averageRating: u.averageRating ?? 0,
+              totalReviews: u.totalReviews ?? 0,
             },
-            role: u.role,
+            role: updatedRole, // 👈 Dashboard layout toggle isi key par base karta hai
             isLoading: false,
+            error: null,
           });
+
+          // Return extracted values in case layout functions need them on-the-fly
+          return { user: u, role: updatedRole };
+
         } catch (err) {
-          set({ isLoading: false });
+          console.error("❌ fetchProfile CRASHED inside catch block:", err.response?.data || err.message);
+          set({ 
+            isLoading: false, 
+            error: err.response?.data?.message || err.message || "Failed to fetch profile"
+          });
+          return null;
         }
       },
-
-      // ── UPDATE PERSONAL INFO ──
-      updateProfile: async (data) => {
-        set({ isLoading: true });
-        try {
-          const token = getAccessToken();
-          const res = await axios.put(`${API}/profile`, data, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const u = res.data.data.user;
-          set((state) => ({
-            user: { ...state.user, fullName: u.fullName, phone: u.phone, phoneCode: u.phoneCode, timezone: u.timezone },
-            isLoading: false,
-          }));
-          return { success: true };
-        } catch (err) {
-          set({ isLoading: false });
-          return { success: false, error: err.message };
-        }
-      },
-
-      // ── UPDATE PASSWORD ──
-      updatePassword: async (data) => {
-        set({ isLoading: true });
-        try {
-          const token = getAccessToken();
-          await axios.put(`${API}/password`, data, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          set({ isLoading: false });
-          return { success: true };
-        } catch (err) {
-          set({ isLoading: false });
-          return { success: false, error: err.response?.data?.message || err.message };
-        }
-      },
-
-      // ── UPDATE BUSINESS INFO ──
-      updateBusiness: async (data) => {
-        set({ isLoading: true });
-        try {
-          const token = getAccessToken();
-          const res = await axios.put(`${API}/business`, data, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const u = res.data.data.user;
-          set((state) => ({
-            user: { ...state.user, business: u.business },
-            isLoading: false,
-          }));
-          return { success: true };
-        } catch (err) {
-          set({ isLoading: false });
-          return { success: false, error: err.message };
-        }
-      },
-
-      // ── UPDATE AVATAR ──
-      updateAvatar: async (file) => {
-        set({ isLoading: true });
-        try {
-          const token = getAccessToken();
-          const formData = new FormData();
-          formData.append('avatar', file);
-          const res = await axios.post(`${API}/avatar`, formData, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-          set((state) => ({
-            user: { ...state.user, avatar: res.data.data.avatar },
-            isLoading: false,
-          }));
-          return { success: true };
-        } catch (err) {
-          set({ isLoading: false });
-          return { success: false, error: err.message };
-        }
-      },
-
-      // ── ADD PAYMENT METHOD ──
-      addPaymentMethod: async (data) => {
-        set({ isLoading: true });
-        try {
-          const token = getAccessToken();
-          const res = await axios.post(`${API}/payment-methods`, data, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          set((state) => ({
-            user: { ...state.user, paymentMethods: res.data.data.paymentMethods },
-            isLoading: false,
-          }));
-          return { success: true };
-        } catch (err) {
-          set({ isLoading: false });
-          return { success: false, error: err.message };
-        }
-      },
-
-      // ── DELETE PAYMENT METHOD ──
-      deletePaymentMethod: async (methodId) => {
-        set({ isLoading: true });
-        try {
-          const token = getAccessToken();
-          const res = await axios.delete(`${API}/payment-methods/${methodId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          set((state) => ({
-            user: { ...state.user, paymentMethods: res.data.data.paymentMethods },
-            isLoading: false,
-          }));
-          return { success: true };
-        } catch (err) {
-          set({ isLoading: false });
-          return { success: false, error: err.message };
-        }
-      },
-
-      // ── SET DEFAULT PAYMENT METHOD ──
-      setDefaultPaymentMethod: async (methodId) => {
-        set({ isLoading: true });
-        try {
-          const token = getAccessToken();
-          const res = await axios.patch(`${API}/payment-methods/${methodId}/default`, {}, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          set((state) => ({
-            user: { ...state.user, paymentMethods: res.data.data.paymentMethods },
-            isLoading: false,
-          }));
-          return { success: true };
-        } catch (err) {
-          set({ isLoading: false });
-          return { success: false, error: err.message };
-        }
-      },
-
-      clearError: () => set({ error: null }),
     }),
     {
-      name: 'user-storage',
+      name: "user-storage",
       partialize: (state) => ({ role: state.role, user: state.user }),
-    }
-  )
+    },
+  ),
 );

@@ -40,7 +40,7 @@ import { LiveChatWidget } from '@/components/livechat/LiveChatWidget';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem("accessToken"));
-   const [authView, setAuthView] = useState('login');
+const [isSignup, setIsSignup] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const { sidebarCollapsed } = useDashboardStore();
   const { isMobile } = useWindowSize();
@@ -56,18 +56,33 @@ const handleLogin = (accessToken, role) => {
   // ----------------------------
   // SIGNUP
   // ----------------------------
- const handleSignup = (selectedRole) => {
+const handleSignup = (accessToken, selectedRole) => {
+  // 1. Storage update
+  localStorage.setItem("accessToken", accessToken);
+  localStorage.setItem("role", selectedRole); 
+  
+  // 2. States update
+  setToken(accessToken);
   switchRole(selectedRole);
-  setAuthView("login"); // after signup go to login
-};
-const handleLogout = () => {
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("role"); 
-  setToken(null);          // 🔥 IMPORTANT
-  switchRole(null);
+  
   setCurrentView("dashboard");
-  setAuthView("login");
+  setAuthView("app"); 
+  // ✅ Ye line zaroori hai
 };
+const handleAuthSuccess = (accessToken, role) => {
+    localStorage.setItem("accessToken", accessToken);
+    localStorage.setItem("role", role);
+    switchRole(role);
+    setToken(accessToken); // 🔥 Ye change hote hi app re-render hogi aur Dashboard dikh jayega
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("role");
+    setToken(null);
+    switchRole(null);
+  };
+  
   const { selectConversation, openConversationForOrder } = useMessageStore();
 
   const [currentView, setCurrentView] = useState('dashboard');
@@ -143,10 +158,10 @@ useEffect(() => {
 
   // Function to handle catalogue navigation (Advertiser only)
   const handleCatalogueClick = () => {
-    if (role === 'advertiser') {
+    
       setCatalogueShowFavorites(false);
       setCurrentView('catalogue');
-    }
+  
   };
 
   // Function to navigate to catalogue with Favorites filter pre-enabled
@@ -158,11 +173,11 @@ useEffect(() => {
   };
 
   // Function to handle projects navigation (Advertiser only)
-  const handleProjectsClick = () => {
-    if (role === 'advertiser') {
-      setCurrentView('projects');
-    }
-  };
+ // Is function ko dhoond kar aise badlein:
+const handleProjectsClick = () => {
+  // Agar check lagana hai toh check karein console.log(role) karke ki role kya aa raha hai
+  setCurrentView('projects'); 
+};
 
   // Function to handle create project navigation
   const handleCreateProjectClick = () => {
@@ -183,9 +198,9 @@ useEffect(() => {
 
   // Function to handle my portals navigation (Publisher only)
   const handleMyPortalsClick = () => {
-    if (role === 'publisher') {
+   
       setCurrentView('my-portals');
-    }
+  
   };
 
   // Function to handle website orders navigation
@@ -196,17 +211,17 @@ useEffect(() => {
 
   // Function to handle sales navigation (Publisher only)
   const handleSalesClick = () => {
-    if (role === 'publisher') {
+   
       setCurrentView('sales');
-    }
+   
   };
 
   // Function to handle purchases navigation (Advertiser only)
   const handlePurchasesClick = () => {
-    if (role === 'advertiser') {
+   
       setCurrentView('purchases');
       setShowEmptyPurchases(false);
-    }
+    
   };
 
   // Function to show empty purchases state
@@ -260,34 +275,61 @@ useEffect(() => {
       </div>
     );
   }
-
-
-
- if (!authLoading && !token)  {
-    if (authView === 'login') {
-      return (
-        <>
-          <Toaster position="top-right" richColors />
-          <LoginPage
-            onLogin={handleLogin}
-
-            onNavigateToSignup={() => setAuthView('signup')}
-          />
-        </>
-      );
+  const renderContent = () => {
+    switch (currentView) {
+      case 'dashboard':
+        return (
+          <div className="max-w-[1600px] mx-auto space-y-4 md:space-y-6">
+            <div className="pt-1 md:pt-2">
+                <h1 className="text-xl sm:text-2xl font-medium text-foreground mb-0.5">Guest Posting Dashboard</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground">Manage your guest post orders, track performance, and monitor Q&amp;A activity</p>
+              </div>
+            <OrderStatusCards />
+            <OrdersTable onOpenChat={(id) => { selectConversation(id); setCurrentView('messages'); }} />
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <OrdersByDateChart />
+              <VideoSection />
+            </div>
+            <QAStatisticsChart />
+          </div>
+        );
+      case 'profile': return <ProfileSection onBack={() => setCurrentView('dashboard')} />;
+      case 'wallet': return <WalletContainer initialPage={walletInitialPage} />;
+      case 'notifications': return <NotificationsPage />;
+      case 'projects': return <ProjectsPage onCreateProject={handleCreateProjectClick} onViewProject={handleViewProjectClick} />;
+      case 'create-project': return <CreateProjectPage onCancel={() => setCurrentView('projects')} onComplete={() => setCurrentView('projects')} />;
+      case 'project-details': return <ProjectDetailsPage projectId={selectedProjectId} onBack={() => setCurrentView('projects')} />;
+      case 'catalogue': return <CataloguePage onWebsiteClick={handleWebsiteClick} onPublisherClick={handlePublisherProfileClick} />;
+      case 'website-details': return <WebsiteDetailsPage websiteId={selectedWebsiteId} onBack={() => setCurrentView('catalogue')} onPublisherClick={handlePublisherProfileClick} />;
+      case 'my-portals': return <MyPortalsPage onViewWebsiteOrders={(domain) => { setSelectedWebsiteDomain(domain); setCurrentView('website-orders'); }} />;
+      case 'website-orders': return <WebsiteOrdersPage websiteDomain={selectedWebsiteDomain} onBack={() => setCurrentView('my-portals')} />;
+      case 'sales':
+      case 'purchases': return <SalesPurchasesPage onLeaveFeedback={(order) => { setFeedbackOrder(order); setCurrentView('leave-feedback'); }} />;
+      case 'leave-feedback': return <LeaveFeedbackPage order={feedbackOrder} role={role} onBack={() => setCurrentView(role === 'advertiser' ? 'purchases' : 'sales')} onSubmit={() => setCurrentView(role === 'advertiser' ? 'purchases' : 'sales')} />;
+      case 'messages': return <MessagesPage />;
+      default: return <SupportCenter />;
     }
+  };
 
-    if (authView === 'signup') {
-      return (
-        <>
-          <Toaster position="top-right" richColors />
-          <SignupPage
-            onSignup={handleSignup}
-            onNavigateToLogin={() => setAuthView('login')}
+
+// 2. Auth state (Agar token nahi hai)
+if (!token) {
+    return (
+      <>
+        <Toaster position="top-right" richColors />
+        {isSignup ? (
+          <SignupPage 
+            onSignup={handleAuthSuccess} 
+            onNavigateToLogin={() => setIsSignup(false)} 
           />
-        </>
-      );
-    }
+        ) : (
+          <LoginPage 
+            onLogin={handleAuthSuccess} 
+            onNavigateToSignup={() => setIsSignup(true)} 
+          />
+        )}
+      </>
+    );
   }
 
   return (
@@ -333,144 +375,7 @@ useEffect(() => {
             width: isMobile ? '100%' : sidebarCollapsed ? 'calc(100% - 80px)' : 'calc(100% - 240px)'
           }}>
 
-          {currentView === 'dashboard' ?
-            <div className="max-w-[1600px] mx-auto space-y-4 md:space-y-6">
-              <div className="pt-1 md:pt-2">
-                <h1 className="text-xl sm:text-2xl font-medium text-foreground mb-0.5">Guest Posting Dashboard</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground">Manage your guest post orders, track performance, and monitor Q&amp;A activity</p>
-              </div>
-
-              <OrderStatusCards />
-
-              <OrdersTable onOpenChat={(conversationId) => {
-                selectConversation(conversationId);
-                setCurrentView('messages');
-              }} />
-
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
-                <OrdersByDateChart />
-                <VideoSection />
-              </div>
-
-              <QAStatisticsChart />
-            </div> :
-            currentView === 'profile' ?
-              <ProfileSection onBack={() => setCurrentView('dashboard')} /> :
-              currentView === 'wallet' ?
-                <WalletContainer key={walletInitialPage ?? 'default'} initialPage={walletInitialPage} /> :
-                currentView === 'notifications' ?
-                  <NotificationsPage /> :
-                  currentView === 'projects' ?
-                    <ProjectsPage
-                      onCreateProject={handleCreateProjectClick}
-                      onViewProject={handleViewProjectClick} /> :
-
-                    currentView === 'create-project' ?
-                      <CreateProjectPage
-                        onCancel={() => setCurrentView('projects')}
-                        onComplete={() => setCurrentView('projects')} /> :
-
-                      currentView === 'project-details' && selectedProjectId ?
-                        <ProjectDetailsPage
-                          projectId={selectedProjectId}
-                          onBack={() => setCurrentView('projects')} /> :
-
-                        currentView === 'catalogue' ?
-                          <CataloguePage
-                            key={catalogueShowFavorites ? 'fav' : 'all'}
-                            onWebsiteClick={handleWebsiteClick}
-                            onPublisherClick={handlePublisherProfileClick}
-                            initialShowFavorites={catalogueShowFavorites} /> :
-
-                          currentView === 'website-details' && selectedWebsiteId ?
-                            <WebsiteDetailsPage
-                              websiteId={selectedWebsiteId}
-                              onBack={() => setCurrentView('catalogue')}
-                              onPublisherClick={handlePublisherProfileClick} /> :
-
-                            currentView === 'my-portals' ?
-                              <MyPortalsPage onViewWebsiteOrders={handleViewWebsiteOrders} /> :
-                              currentView === 'website-orders' && selectedWebsiteDomain ?
-                                <WebsiteOrdersPage
-                                  websiteDomain={selectedWebsiteDomain}
-                                  onBack={() => setCurrentView('my-portals')}
-                                  onNavigateToMessages={(convId) => {
-                                    selectConversation(convId);
-                                    setCurrentView('messages');
-                                  }} /> :
-
-                                currentView === 'leave-feedback' && feedbackOrder ?
-                                  <LeaveFeedbackPage
-                                    order={feedbackOrder}
-                                    role={role}
-                                    onBack={() => setCurrentView(role === 'advertiser' ? 'purchases' : 'sales')}
-                                    onSubmit={(_orderId, _feedback) => {
-                                      setCurrentView(role === 'advertiser' ? 'purchases' : 'sales');
-                                    }} /> :
-
-                                  currentView === 'sales' ?
-                                    <SalesPurchasesPage
-                                      onProfileClick={handlePublicProfileClick}
-                                      onLeaveFeedback={(order) => {
-                                        setFeedbackOrder(order);
-                                        setCurrentView('leave-feedback');
-                                      }}
-                                      onNavigateToMessages={(convId) => {
-                                        selectConversation(convId);
-                                        setCurrentView('messages');
-                                      }} /> :
-
-                                    currentView === 'purchases' ?
-                                      <SalesPurchasesPage
-                                        onProfileClick={handlePublicProfileClick}
-                                        showEmptyState={showEmptyPurchases}
-                                        onShowEmptyState={handleShowEmptyPurchases}
-                                        onLeaveFeedback={(order) => {
-                                          setFeedbackOrder(order);
-                                          setCurrentView('leave-feedback');
-                                        }}
-                                        onNavigateToMessages={(convId) => {
-                                          selectConversation(convId);
-                                          setCurrentView('messages');
-                                        }} /> :
-
-                                      currentView === 'public-profile' && selectedProfile ?
-                                        <PublicProfilePage
-                                          profileName={selectedProfile}
-                                          onBack={() => setCurrentView(role === 'publisher' ? 'sales' : 'purchases')}
-                                          onMessage={() => {
-                                            const otherRole = role === 'publisher' ? 'Advertiser' : 'Publisher';
-                                            const convId = openConversationForOrder(`profile-${selectedProfile}`, selectedProfile || 'User', otherRole);
-                                            selectConversation(convId);
-                                            setCurrentView('messages');
-                                          }} /> :
-
-                                        currentView === 'publisher-profile' && selectedPublisher ?
-                                          <PublisherProfilePage
-                                            publisherName={selectedPublisher}
-                                            onBack={() => setCurrentView('catalogue')}
-                                            onMessage={() => {
-                                              const convId = openConversationForOrder(`profile-${selectedPublisher}`, selectedPublisher || 'Publisher', 'Publisher');
-                                              selectConversation(convId);
-                                              setCurrentView('messages');
-                                            }}
-                                            onWebsiteClick={handleWebsiteClick}
-                                            onRatingsClick={handleRatingsClick} /> :
-
-                                          currentView === 'ratings' && selectedPublisher ?
-                                            <RatingsPage
-                                              publisherName={selectedPublisher}
-                                              onBack={() => setCurrentView('publisher-profile')} /> :
-
-                                            currentView === 'cart' ?
-                                              <CartPage onNavigate={(page) => setCurrentView(page)} /> :
-                                              currentView === 'messages' ?
-                                                <MessagesPage onPublisherClick={handlePublisherProfileClick} /> :
-                                                currentView === 'order-confirmation' ?
-                                                  <OrderConfirmationPage onNavigate={handleOrderConfirmationNavigate} /> :
-
-                                                  <SupportCenter />
-          }
+          {renderContent()}
         </main>
 
         <Footer />

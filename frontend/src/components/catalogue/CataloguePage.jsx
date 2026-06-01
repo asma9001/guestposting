@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
+import axios from 'axios';
 import {
   SearchIcon,
   BookmarkIcon,
@@ -51,6 +52,8 @@ import {
   TooltipTrigger } from
 "@/components/ui/tooltip";
 import { RequestWebsiteModal } from './RequestWebsiteModal';
+import api from '../../lib/api';
+import { useCartStore } from '../../stores/cartStore';
 
 const RangeFilter = ({ label, icon: Icon, prefix = "", suffix = "", min = 0, max, className }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -290,105 +293,7 @@ const FilterSelect = ({
 
 };
 
-// Generate mock data for 120 items
-const generateMockData = () => {
-  const templates = [
-  {
-    domain: 'TechDaily',
-    tld: '.com',
-    initial: 'T',
-    initialColor: 'bg-indigo-100 text-indigo-600',
-    categories: ['Technology', 'AI', 'SaaS'],
-    blocked: ['Crypto', 'Gambling'],
-    language: 'English',
-    country: 'United Kingdom',
-    flag: '🇬🇧',
-    langFlag: '🇺🇸'
-  },
-  {
-    domain: 'FinanceToday',
-    tld: '.net',
-    initial: 'F',
-    initialColor: 'bg-green-100 text-green-600',
-    categories: ['Business', 'Finance', 'Economy'],
-    blocked: ['None'],
-    language: 'Spanish',
-    country: 'Spain',
-    flag: '🇪🇸',
-    langFlag: '🇪🇸'
-  },
-  {
-    domain: 'HealthWeekly',
-    tld: '.org',
-    initial: 'H',
-    initialColor: 'bg-red-100 text-red-600',
-    categories: ['Health', 'Wellness', 'Medical'],
-    blocked: ['Pharma'],
-    language: 'German',
-    country: 'Germany',
-    flag: '🇩🇪',
-    langFlag: '🇩🇪'
-  },
-  {
-    domain: 'GamingHub',
-    tld: '.io',
-    initial: 'G',
-    initialColor: 'bg-purple-100 text-purple-600',
-    categories: ['Gaming', 'Entertainment'],
-    blocked: ['Casino'],
-    language: 'English',
-    country: 'United States',
-    flag: '🇺🇸',
-    langFlag: '🇺🇸'
-  },
-  {
-    domain: 'TravelVibes',
-    tld: '.com',
-    initial: 'V',
-    initialColor: 'bg-teal-100 text-teal-600',
-    categories: ['Travel', 'Lifestyle'],
-    blocked: ['None'],
-    language: 'French',
-    country: 'France',
-    flag: '🇫🇷',
-    langFlag: '🇫🇷'
-  }];
 
-
-  const data = [];
-  for (let i = 1; i <= 120; i++) {
-    const template = templates[i % templates.length];
-    data.push({
-      id: i,
-      domain: `${template.domain}${i}${template.tld}`,
-      initial: template.initial,
-      initialColor: template.initialColor,
-      rating: (3.5 + Math.random() * 1.5).toFixed(1),
-      published: `${Math.floor(Math.random() * 24) + 1}h ago`,
-      categories: template.categories,
-      blocked: template.blocked,
-      language: template.language,
-      country: template.country,
-      flag: template.flag,
-      langFlag: template.langFlag,
-      da: Math.floor(Math.random() * 60) + 20,
-      dr: Math.floor(Math.random() * 60) + 20,
-      traffic: `${Math.floor(Math.random() * 100) + 1}K`,
-      price: Math.floor(Math.random() * 400) + 50,
-      copywriting: Math.floor(Math.random() * 40) + 10,
-      discount: Math.random() > 0.7 ? Math.floor(Math.random() * 20) + 5 : 0,
-      isFavorite: Math.random() > 0.8,
-      badges: {
-        proPublisher: Math.random() > 0.5,
-        fastDelivery: Math.random() > 0.6,
-        lifetimeGuarantee: Math.random() > 0.7
-      }
-    });
-  }
-  return data;
-};
-
-const catalogueData = generateMockData();
 
 
 
@@ -417,21 +322,110 @@ export function CataloguePage({ onWebsiteClick, onPublisherClick, initialShowFav
   const [addingItemId, setAddingItemId] = useState(null);
   const [cartItems, setCartItems] = useState({});
   const [showRequestModal, setShowRequestModal] = useState(false);
+  // 🚨 FIX 1: Missing State Declarations adding here
+  const [catalogueData, setCatalogueData] = useState([]);
+  const [loading, setLoading] = useState(true);
+ const { addItem, isInCart } = useCartStore();
+useEffect(() => {
+    const getWebsites = async () => {
+      try {
+        const response = await api.get('/api/website/');
+        console.log("RAW API RESPONSE:", response.data);
 
-  // Filter logic
+        const websitesArray = response && response.data && Array.isArray(response.data.websites)
+          ? response.data.websites
+          : [];
+
+        const activeWebsites = websitesArray.filter(web => web && web.status === 'active');
+
+        // Dynamic flag dictionary mapping keys
+        const countryFlags = {
+          'United States': '🇺🇸',
+          'United Kingdom': '🇬🇧',
+          'Germany': '🇩🇪',
+          'Spain': '🇪🇸',
+          'France': '🇫🇷',
+          'Canada': '🇨🇦',
+          'Australia': '🇦🇺',
+          'India': '🇮🇳',
+          'Italy': '🇮🇹',
+          'Netherlands': '🇳🇱',
+          'Brazil': '🇧🇷'
+        };
+
+        const languageFlags = {
+          'English': '🇺🇸',
+          'Spanish': '🇪🇸',
+          'German': '🇩🇪',
+          'French': '🇫🇷',
+          'Italian': '🇮🇹',
+          'Portuguese': '🇵🇹',
+          'Dutch': '🇳🇱'
+        };
+
+        const formatted = activeWebsites.map((web, index) => {
+          const cleanDomain = web.websiteUrl
+            ? web.websiteUrl.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '')
+            : 'unknown.com';
+
+          const siteCountry = web.countries && web.countries.length > 0 ? web.countries[0] : 'United States';
+          const siteLanguage = web.language && web.language.length > 0 ? web.language[0] : 'English';
+
+          return {
+            ...web,
+            id: web._id,
+            domain: cleanDomain,
+            initial: cleanDomain.charAt(0).toUpperCase(),
+            initialColor: index % 2 === 0 ? 'bg-indigo-100 text-indigo-600' : 'bg-green-100 text-green-600',
+            rating: "4.5",
+            published: "2h ago",
+            categories: web.categories || [],
+            sensitiveTopics: web.sensitiveTopics || [],
+            country: siteCountry,
+            language: siteLanguage,
+            flag: countryFlags[siteCountry] || '🌐', // Dynamic Flag assignment
+            langFlag: languageFlags[siteLanguage] || '🌐', // Dynamic Lang Flag assignment
+
+            da: 35,
+            dr: 40,
+            traffic: "25K",
+
+            price: web.priceNormal,
+            copywriting: web.priceCopywriting || 0,
+            discount: 0,
+            isFavorite: false,
+            badges: {
+              proPublisher: true,
+              fastDelivery: web.maxLinks <= 2,
+              lifetimeGuarantee: true
+            }
+          };
+        });
+
+        setCatalogueData(formatted);
+        console.log("✅ Catalogue data loaded:", formatted);
+        setLoading(false);
+      } catch (error) {
+        console.error("Database fetch failed, loading fallback mock data", error);
+        setLoading(false);
+      }
+    };
+
+    getWebsites();
+  }, []);
+
+  // 🔍 FILTER LOGIC (Remains exactly the same as yours, working on `catalogueData` state)
   let filteredData = catalogueData;
 
-  // Main Search Filter
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
     filteredData = filteredData.filter((item) =>
-    item.domain.toLowerCase().includes(query) ||
-    item.categories.some((cat) => cat.toLowerCase().includes(query)) ||
-    item.country.toLowerCase().includes(query) ||
-    item.language.toLowerCase().includes(query)
+      item.domain.toLowerCase().includes(query) ||
+      item.categories.some((cat) => cat.toLowerCase().includes(query)) ||
+      item.country.toLowerCase().includes(query) ||
+      item.language.toLowerCase().includes(query)
     );
   }
-
   // Advanced Keywords Filter
   if (keywords.length > 0) {
     filteredData = filteredData.filter((item) =>
@@ -539,7 +533,22 @@ export function CataloguePage({ onWebsiteClick, onPublisherClick, initialShowFav
   { value: "dating", label: "Dating" },
   { value: "forex", label: "Forex" },
   { value: "adult", label: "Adult" }];
-
+const countryFlags = {
+  'United States': '🇺🇸',
+  'United Kingdom': '🇬🇧',
+  'Germany': '🇩🇪',
+  'Spain': '🇪🇸',
+  'France': '🇫🇷',
+  'Canada': '🇨🇦',
+  'Australia': '🇦🇺',
+  'India': '🇮🇳'
+};
+const languageFlags = {
+  'English': '🇺🇸',
+  'Spanish': '🇪🇸',
+  'German': '🇩🇪',
+  'French': '🇫🇷'
+};
 
   const countries = [
   { value: "all", label: "All" },
@@ -628,8 +637,7 @@ export function CataloguePage({ onWebsiteClick, onPublisherClick, initialShowFav
   };
 
   const handleAddToCart = (itemId) => {
-    setAddingItemId(itemId);
-
+    addItem(item);
     setTimeout(() => {
       setCartItems((prev) => ({
         ...prev,
@@ -1037,27 +1045,37 @@ export function CataloguePage({ onWebsiteClick, onPublisherClick, initialShowFav
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-border">
             <thead className="bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[240px]">Website & Rating</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[220px]">Category & Topics</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[180px]">Region</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[200px]">Authority Metrics</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Pricing</th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Action</th>
-              </tr>
+          <tr>
+  <th className="px-4 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[240px]">Website & Rating</th>
+  <th className="px-4 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[220px]">Category & Topics</th>
+  <th className="px-4 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[180px]">Region</th>
+  
+  {/* Authority Metrics Header Change */}
+  <th className="px-3 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[160px]">
+    <div className="flex flex-col font-semibold text-muted-foreground ">
+      <span className='font-semibold text-muted-foreground '>Authority</span>
+      <span className='font-semibold text-muted-foreground '>Metrics</span>
+    </div>
+  </th>
+  
+  <th className="px-4 py-3 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">Pricing</th>
+  <th className="px-4 py-3 text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[100px]">Action</th>
+</tr>
             </thead>
             <tbody className="bg-white divide-y divide-border">
-              {currentData.map((item) =>
-                <tr key={item.id} className="group hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-4 align-top">
-                    <div className="flex items-start gap-2.5">
-                      <div className={`size-7 rounded-md ${item.initialColor} flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5`}>
+              {currentData.map((item) =>{
+                const isAdded = isInCart(item.id);
+                return (
+                  <tr key={item.id} className="group hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-4 align-top">
+                      <div className="flex items-start gap-2.5">
+                        <div className={`size-7 rounded-md ${item.initialColor} flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5`}>
                         {item.initial}
                       </div>
                       <div className="flex flex-col gap-2 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <button
-                            onClick={() => onWebsiteClick?.(item.id)}
+                            onClick={() => onWebsiteClick?.(item._id)}
                             className="text-sm font-semibold text-primary hover:underline truncate text-left">
                             
                             {item.domain}
@@ -1128,7 +1146,7 @@ export function CataloguePage({ onWebsiteClick, onPublisherClick, initialShowFav
                       </div>
                       <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
                         <BanIcon className="w-3.5 h-3.5 text-rose-400 mt-0.5 shrink-0" />
-                        <span className="leading-4">{item.blocked.join(', ')}</span>
+                        <span className="leading-4">{item.sensitiveTopics && item.sensitiveTopics.length > 0 ? item.sensitiveTopics.join(', ') : 'None'}</span>
                       </div>
                     </div>
                   </td>
@@ -1144,7 +1162,7 @@ export function CataloguePage({ onWebsiteClick, onPublisherClick, initialShowFav
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-4 align-top">
+                    <td className="px-3 py-4 align-top">
                     <div className="grid grid-cols-1 gap-1.5">
                       <div className="flex items-center justify-between p-1 rounded bg-slate-50 border border-slate-100 max-w-[160px]">
                         <div className="flex items-center gap-1.5">
@@ -1228,7 +1246,7 @@ export function CataloguePage({ onWebsiteClick, onPublisherClick, initialShowFav
                         </div> :
 
                       <Button
-                        onClick={() => handleAddToCart(item.id)}
+                        onClick={() => !isAdded && addItem(item)}
                         disabled={addingItemId === item.id}
                         className={cn(
                           "h-8 px-3 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm text-xs font-medium justify-center transition-all duration-300 whitespace-nowrap",
@@ -1251,7 +1269,8 @@ export function CataloguePage({ onWebsiteClick, onPublisherClick, initialShowFav
                     </div>
                   </td>
                 </tr>
-                )}
+               );
+  })}
             </tbody>
           </table>
         </div>

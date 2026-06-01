@@ -34,7 +34,7 @@ const ticketSchema = new mongoose.Schema(
 
     category: {
       type: String,
-      enum: ["account", "payment", "approval", "technical", "other"],
+      
     },
 
     priority: {

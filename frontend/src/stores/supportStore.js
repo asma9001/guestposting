@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { ticketAPI } from "../services/ticketApi";
 
-
 export const useSupportStore = create((set, get) => ({
   tickets: [],
   selectedTicket: null,
@@ -12,10 +11,17 @@ export const useSupportStore = create((set, get) => ({
   setSearchQuery: (val) => set({ searchQuery: val }),
   setStatusFilter: (val) => set({ statusFilter: val }),
 
+  // Helper to generate the auth header config dynamically
+  getAuthConfig: () => {
+    const token = localStorage.getItem("accessToken");
+    return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  },
+
   // GET TICKETS
   getTickets: async () => {
     try {
-      const res = await ticketAPI.getAll();
+      const config = get().getAuthConfig();
+      const res = await ticketAPI.getAll(config);
       set({ tickets: res.data.tickets || [] });
     } catch (err) {
       console.error("Get tickets error:", err);
@@ -23,13 +29,16 @@ export const useSupportStore = create((set, get) => ({
   },
 
   // CREATE TICKET
-  createTicket: async (data) => {
+createTicket: async (formDataOrJson) => {
     try {
-      const res = await ticketAPI.create(data);
-
+      // Check karte hain agar data FormData hai to us hisab se header banyein
+      const isFormData = formDataOrJson instanceof FormData;
+      const config = get().getAuthConfig(isFormData);
+      
+      const res = await ticketAPI.create(formDataOrJson, config);
       const newTicket = res.data.ticket;
 
-      // update UI instantly
+      // Update UI instantly
       set((state) => ({
         tickets: [newTicket, ...state.tickets],
       }));
@@ -40,24 +49,27 @@ export const useSupportStore = create((set, get) => ({
       throw err;
     }
   },
+
+  // ADD MESSAGE
   addMessage: async (ticketId, message) => {
-  try {
-    const res = await ticketAPI.addMessage(ticketId, {
-      message,
-    });
+    try {
+      const config = get().getAuthConfig();
+      // Passing message body and config headers
+      const res = await ticketAPI.addMessage(ticketId, { message }, config);
+      const updatedTicket = res.data.ticket;
 
-    const updatedTicket = res.data.ticket;
+      set((state) => ({
+        tickets: state.tickets.map((t) =>
+          t._id === ticketId ? updatedTicket : t
+        ),
+        // Keep the selected ticket view in sync if it's the one currently open
+        selectedTicket: state.selectedTicket?._id === ticketId ? updatedTicket : state.selectedTicket
+      }));
 
-    set((state) => ({
-      tickets: state.tickets.map((t) =>
-        t._id === ticketId ? updatedTicket : t
-      ),
-    }));
-
-    return updatedTicket;
-  } catch (err) {
-    console.error(err);
-    throw err;
+      return updatedTicket;
+    } catch (err) {
+      console.error("Add message error:", err);
+      throw err;
+    }
   }
-}
 }));

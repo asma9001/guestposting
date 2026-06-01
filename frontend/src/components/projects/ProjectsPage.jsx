@@ -37,7 +37,7 @@ import { cn } from '@/lib/utils';
 
 
 export function ProjectsPage({ onCreateProject, onViewProject }) {
-  const { projects } = useProjectStore();
+const { projects, fetchProjects, isLoading, error } = useProjectStore();
   const [viewMode, setViewMode] = useState('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState([]);
@@ -45,7 +45,10 @@ export function ProjectsPage({ onCreateProject, onViewProject }) {
   const [languageFilter, setLanguageFilter] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
   const containerRef = useRef(null);
-
+useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+  console.log("🚀 ProjectsPage rendered with projects:", projects, "isLoading:", isLoading, "error:", error);
   useEffect(() => {
     if (containerRef.current) {
       gsap.fromTo(
@@ -320,7 +323,7 @@ export function ProjectsPage({ onCreateProject, onViewProject }) {
           const completedPercent = totalOrders > 0 ? project.completedOrders / totalOrders * 100 : 0;
 
           return (
-            <Card key={project.id} className="group hover:shadow-lg transition-all duration-300 border-border bg-card overflow-hidden flex flex-col">
+            <Card key={project._id} className="group hover:shadow-lg transition-all duration-300 border-border bg-card overflow-hidden flex flex-col">
               {/* Card Header */}
               <div className="p-4 pb-0">
                 <div className="flex justify-between items-start mb-3">
@@ -333,7 +336,7 @@ export function ProjectsPage({ onCreateProject, onViewProject }) {
                         {project.name}
                       </CardTitle>
                       <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] font-mono text-muted-foreground">{project.id}</span>
+                        <span className="text-[10px] font-mono text-muted-foreground">PRG-{project._id.substring(project._id.length - 4).toUpperCase()}</span>
                         <span className="text-[10px] text-muted-foreground">•</span>
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <CalendarIcon className="w-3 h-3" />
@@ -362,10 +365,10 @@ export function ProjectsPage({ onCreateProject, onViewProject }) {
                     {project.status}
                   </Badge>
                   <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-medium px-2 py-0.5">
-                    {project.language}
+                    {project.languages}
                   </Badge>
                   <Badge variant="secondary" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] font-medium px-2 py-0.5">
-                    {project.purpose}
+                    {project.projectObject}
                   </Badge>
                 </div>
 
@@ -417,7 +420,7 @@ export function ProjectsPage({ onCreateProject, onViewProject }) {
                     variant="outline"
                     size="sm"
                     className="text-[11px] font-medium h-7 px-2.5 shadow-sm"
-                    onClick={() => onViewProject?.(project.id)}>
+                    onClick={() => onViewProject?.(project._id)}>
                     
                     <PieChartIcon className="w-3.5 h-3.5 mr-1.5" />
                     View Project
