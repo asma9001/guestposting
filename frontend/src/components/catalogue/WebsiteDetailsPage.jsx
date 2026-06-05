@@ -41,7 +41,94 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import api from "../../lib/api";
+import { useFavoriteStore } from "@/stores/favoriteStore";
+const website = {
+  domain: "tech-daily-news.com",
+  initial: "T",
+  initialColor: "bg-indigo-100 text-indigo-600",
+  rating: 4.6,
+  reviews: 124,
+  description:
+    "Tech Daily News is a premium technology publication. We accept guest posts that are high-quality, relevant, and provide value to our readers.",
+  language: "English",
+  langFlag: "🇺🇸",
+  country: "United States",
+  flag: "🇺🇸",
+  categories: ["Technology", "Software", "Business"],
+  keywords: [
+    "#tech_news",
+    "#innovation",
+    "#saas",
+    "#digital_trends",
+    "#gadgets",
+    "#startup_growth",
+  ],
+  blocked: ["Casino", "Gambling", "Adult"],
+  avgSpeed: "3 Days",
+  maxLinks: 2,
+  linkType: "DoFollow",
+  permanent: true,
+  price: 150,
+  sensitivePrice: 220,
+  copywritingPrice: 15,
+  traffic: "45.2K",
+  trafficGrowth: "+12%",
+  da: 62,
+  dr: 58,
+  badges: {
+    proPublisher: true,
+    fastDelivery: true,
+    lifetimeGuarantee: true,
+  },
+  metrics: {
+    ahrefs: {
+      rank: "124,592",
+      ur: 42,
+      organicTraffic: "15.2K",
+      refDomains: "4.5K",
+      linkedDomains: 850,
+      backlinks: "1.2M",
+      keywords: "28K",
+    },
+    majestic: {
+      trustFlow: 34,
+      citationFlow: 42,
+      domainAge: "8 Years",
+      backlinks: "980K",
+      donorDomains: "3.2K",
+    },
+    availability: {
+      completedOrders: 142,
+      articlesAvailable: "100%",
+      addedDate: "Oct 12, 2021",
+    },
+  },
+  topCountries: [
+    { name: "USA", flag: "🇺🇸", percentage: 65 },
+    { name: "UK", flag: "🇬🇧", percentage: 15 },
+    { name: "Canada", flag: "🇨🇦", percentage: 8 },
+  ],
 
+  trafficSources: [
+    { type: "Organic", percentage: 82, color: "green" },
+    { type: "Direct", percentage: 12, color: "blue" },
+    { type: "Other", percentage: 6, color: "gray" },
+  ],
+
+  trafficHistory: [
+    { month: "Jan", traffic: 38500 },
+    { month: "Feb", traffic: 40200 },
+    { month: "Mar", traffic: 42800 },
+    { month: "Apr", traffic: 41500 },
+    { month: "May", traffic: 44100 },
+    { month: "Jun", traffic: 45200 },
+  ],
+
+  placement: [
+    { type: "Homepage Announcement", icon: "megaphone", color: "purple" },
+    { type: "Published in Relevant Section", icon: "segment", color: "green" },
+  ],
+};
 export function WebsiteDetailsPage({
   websiteId,
   onBack,
@@ -49,11 +136,13 @@ export function WebsiteDetailsPage({
   onPublisherClick,
 }) {
   const { selectConversation, conversations } = useMessageStore();
-  const [isFavorite, setIsFavorite] = useState(false);
+
   const [isInCart, setIsInCart] = useState(false);
   const [chatModalOpen, setChatModalOpen] = useState(false);
   const [getWebsiteData, setGetWebsiteData] = useState([]);
   const [loading, setLoading] = useState(true);
+  // With the store subscription:
+
   const countryFlags = {
     "United States": "🇺🇸",
     "United Kingdom": "🇬🇧",
@@ -77,12 +166,13 @@ export function WebsiteDetailsPage({
     Portuguese: "🇵🇹",
     Dutch: "🇳🇱",
   };
-  // Jab bhi getWebsiteData change hoga, ye run hoga aur updated data dikhayega
+
   useEffect(() => {
     if (getWebsiteData) {
       console.log("✅ State successfully updated:", getWebsiteData);
     }
   }, [getWebsiteData]);
+
   useEffect(() => {
     const getWebsitesById = async () => {
       try {
@@ -112,7 +202,16 @@ export function WebsiteDetailsPage({
     };
     getWebsitesById();
   }, [websiteId]);
+  const toggleFavorite = useFavoriteStore((state) => state.toggleFavorite);
 
+  // 2. Use the ID from your API data if available, otherwise fallback to the prop
+  // This is critical: if getWebsiteData is null, use websiteId
+  const currentWebsiteId = getWebsiteData?.id || websiteId;
+
+  // 3. Subscribe to the store using the reliable ID
+  const isFavorite = useFavoriteStore((state) =>
+    state.isFavorite(currentWebsiteId),
+  );
   const handleAddToCart = () => {
     setIsInCart(true);
     if (onAddToCart) {
@@ -121,7 +220,6 @@ export function WebsiteDetailsPage({
   };
 
   const handleMessageClick = () => {
-    // Find a conversation for this website or select the first available one
     const websiteConversation = conversations.find((c) =>
       c.websiteName
         ?.toLowerCase()
@@ -141,6 +239,7 @@ export function WebsiteDetailsPage({
     setChatModalOpen(false);
     onPublisherClick?.(name);
   };
+
   if (loading) {
     return (
       <div
@@ -173,6 +272,7 @@ export function WebsiteDetailsPage({
       </div>
     );
   }
+
   return (
     <TooltipProvider>
       <QuickChatModal
@@ -197,46 +297,56 @@ export function WebsiteDetailsPage({
                     </h1>
 
                     {/* Badges */}
-                  <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mb-3">
-  {/* Pro Publisher */}
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <div className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-muted/80 to-muted/60 text-foreground rounded border border-border/80 cursor-help shadow-sm hover:shadow-md hover:border-border transition-all duration-200 hover:scale-105">
-        <AwardIcon className="w-2.5 h-2.5 text-amber-600 flex-shrink-0" />
-        <span className="text-[9px] font-semibold whitespace-nowrap">Pro Publisher</span>
-      </div>
-    </TooltipTrigger>
-    <TooltipContent>
-      <p className="text-xs">Experienced and trusted publisher</p>
-    </TooltipContent>
-  </Tooltip>
+                    <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mb-3">
+                      {/* Pro Publisher */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-muted/80 to-muted/60 text-foreground rounded border border-border/80 cursor-help shadow-sm hover:shadow-md hover:border-border transition-all duration-200 hover:scale-105">
+                            <AwardIcon className="w-2.5 h-2.5 text-amber-600 flex-shrink-0" />
+                            <span className="text-[9px] font-semibold whitespace-nowrap">
+                              Pro Publisher
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">
+                            Experienced and trusted publisher
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
 
-  {/* Fast Delivery */}
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <div className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-muted/80 to-muted/60 text-foreground rounded border border-border/80 cursor-help shadow-sm hover:shadow-md hover:border-border transition-all duration-200 hover:scale-105">
-        <ZapIcon className="w-2.5 h-2.5 text-yellow-500 fill-current flex-shrink-0" />
-        <span className="text-[9px] font-semibold whitespace-nowrap">Fast Delivery</span>
-      </div>
-    </TooltipTrigger>
-    <TooltipContent>
-      <p className="text-xs">Faster than standard delivery</p>
-    </TooltipContent>
-  </Tooltip>
+                      {/* Fast Delivery */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-muted/80 to-muted/60 text-foreground rounded border border-border/80 cursor-help shadow-sm hover:shadow-md hover:border-border transition-all duration-200 hover:scale-105">
+                            <ZapIcon className="w-2.5 h-2.5 text-yellow-500 fill-current flex-shrink-0" />
+                            <span className="text-[9px] font-semibold whitespace-nowrap">
+                              Fast Delivery
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">
+                            Faster than standard delivery
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
 
-  {/* Lifetime Guarantee */}
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <div className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-muted/80 to-muted/60 text-foreground rounded border border-border/80 cursor-help shadow-sm hover:shadow-md hover:border-border transition-all duration-200 hover:scale-105">
-        <ShieldIcon className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
-        <span className="text-[9px] font-semibold whitespace-nowrap">Lifetime Guarantee</span>
-      </div>
-    </TooltipTrigger>
-    <TooltipContent>
-      <p className="text-xs">Link remains active forever</p>
-    </TooltipContent>
-  </Tooltip>
-</div>
+                      {/* Lifetime Guarantee */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="inline-flex items-center gap-0.5 px-1 py-0.5 bg-gradient-to-r from-muted/80 to-muted/60 text-foreground rounded border border-border/80 cursor-help shadow-sm hover:shadow-md hover:border-border transition-all duration-200 hover:scale-105">
+                            <ShieldIcon className="w-2.5 h-2.5 text-emerald-600 flex-shrink-0" />
+                            <span className="text-[9px] font-semibold whitespace-nowrap">
+                              Lifetime Guarantee
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">Link remains active forever</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
 
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                       <div className="flex text-yellow-400">
@@ -275,11 +385,14 @@ export function WebsiteDetailsPage({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setIsFavorite(!isFavorite)}
+                      onClick={() => {
+                        const dataToSave = { ...getWebsiteData, id: websiteId };
+                        toggleFavorite(dataToSave);
+                      }}
                       className={`h-7 w-7 sm:h-8 sm:w-8 p-0 ${isFavorite ? "text-rose-500 hover:text-rose-600 hover:bg-rose-50" : "text-muted-foreground hover:text-rose-500 hover:bg-rose-50"}`}
                     >
                       <HeartIcon
-                        className={`w-4 h-4 sm:w-4.5 sm:h-4.5 ${isFavorite ? "fill-current" : ""}`}
+                        className={`w-4 h-4 ${isFavorite ? "fill-current" : ""}`}
                       />
                     </Button>
                   </div>
@@ -392,16 +505,21 @@ export function WebsiteDetailsPage({
                               Keywords
                             </h3>
                           </div>
-                        <div className="flex flex-wrap gap-1">
-  {["SEO", "Marketing", "Technology", "Guest Post"].map((keyword, idx) => (
-    <div
-      key={idx}
-      className="px-1.5 py-0.5 bg-muted/50 border border-border/50 rounded text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
-    >
-      {keyword}
-    </div>
-  ))}
-</div>
+                          <div className="flex flex-wrap gap-1">
+                            {[
+                              "SEO",
+                              "Marketing",
+                              "Technology",
+                              "Guest Post",
+                            ].map((keyword, idx) => (
+                              <div
+                                key={idx}
+                                className="px-1.5 py-0.5 bg-muted/50 border border-border/50 rounded text-[11px] font-medium text-foreground hover:bg-muted transition-colors"
+                              >
+                                {keyword}
+                              </div>
+                            ))}
+                          </div>
                         </div>
 
                         {/* Sensitive Topics */}
@@ -414,23 +532,26 @@ export function WebsiteDetailsPage({
                               Sensitive Topics
                             </h3>
                           </div>
-                         <div className="flex flex-wrap gap-1.5">
-  {getWebsiteData?.sensitiveTopics && getWebsiteData.sensitiveTopics.length > 0 ? (
-    getWebsiteData.sensitiveTopics.map((item, idx) => (
-      <div
-        key={idx}
-        className="flex items-center gap-1 px-2 py-0.5 bg-muted/50 border border-border/50 rounded text-xs font-medium text-foreground hover:bg-muted transition-colors"
-      >
-        <BanIcon className="w-2.5 h-2.5 text-destructive" />
-        <span>{item}</span>
-      </div>
-    ))
-  ) : (
-    <p className="text-xs text-muted-foreground italic">
-      No sensitive topics restricted.
-    </p>
-  )}
-</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {getWebsiteData?.sensitiveTopics &&
+                            getWebsiteData.sensitiveTopics.length > 0 ? (
+                              getWebsiteData.sensitiveTopics.map(
+                                (item, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex items-center gap-1 px-2 py-0.5 bg-muted/50 border border-border/50 rounded text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                                  >
+                                    <BanIcon className="w-2.5 h-2.5 text-destructive" />
+                                    <span>{item}</span>
+                                  </div>
+                                ),
+                              )
+                            ) : (
+                              <p className="text-xs text-muted-foreground italic">
+                                No sensitive topics restricted.
+                              </p>
+                            )}
+                          </div>
                         </div>
 
                         {/* Placement */}
@@ -514,7 +635,8 @@ export function WebsiteDetailsPage({
                       <CardContent className="p-3">
                         <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
                           <p>
-                            {getWebsiteData?.instructions || "No specific instructions provided by the publisher."}
+                            {getWebsiteData?.instructions ||
+                              "No specific instructions provided by the publisher."}
                           </p>
                         </div>
                       </CardContent>
@@ -538,11 +660,11 @@ export function WebsiteDetailsPage({
                       </span>
                       <div className="flex items-baseline gap-2">
                         <p className="text-sm font-medium text-foreground tracking-tight">
-                          {getWebsiteData?.traffic}
+                          45.2K
                         </p>
                         <span className="text-[10px] text-green-600 font-medium flex items-center bg-green-50 px-1.5 py-0.5 rounded-full">
                           <TrendingUpIcon className="w-2.5 h-2.5 mr-0.5" />
-                          {getWebsiteData?.trafficGrowth}
+                          +12.5%
                         </span>
                       </div>
                     </div>
@@ -561,7 +683,7 @@ export function WebsiteDetailsPage({
                     </span>
                   </div>
                   <p className="text-sm font-medium text-foreground tracking-tight">
-                    {getWebsiteData?.da}
+                    62
                   </p>
                 </CardContent>
               </Card>
@@ -577,7 +699,7 @@ export function WebsiteDetailsPage({
                     </span>
                   </div>
                   <p className="text-sm font-medium text-foreground tracking-tight">
-                    {getWebsiteData?.dr}
+                    68
                   </p>
                 </CardContent>
               </Card>
@@ -585,12 +707,6 @@ export function WebsiteDetailsPage({
 
             {/* Detailed Metrics */}
             <Card className="border-border shadow-sm">
-              <CardHeader className="px-4 sm:px-6 py-2 sm:py-3 border-b border-border bg-muted/30">
-                <h3 className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2">
-                  <BarChart3Icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                  Detailed Metrics
-                </h3>
-              </CardHeader>
               <CardContent className="p-4 sm:p-5 md:p-6 lg:p-7">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-6 sm:gap-y-8 md:gap-y-10 gap-x-6 sm:gap-x-8 md:gap-x-10 lg:gap-x-12">
                   {/* Ahrefs Metrics */}
@@ -602,13 +718,13 @@ export function WebsiteDetailsPage({
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
                         <dt className="text-muted-foreground">Ahrefs Rank</dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.ahrefs?.rank}
+                          {website.metrics.ahrefs.rank}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
                         <dt className="text-muted-foreground">UR</dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.ahrefs?.ur}
+                          {website.metrics.ahrefs.ur}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
@@ -616,13 +732,13 @@ export function WebsiteDetailsPage({
                           Organic Traffic
                         </dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.ahrefs?.organicTraffic}
+                          {website.metrics.ahrefs.organicTraffic}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
                         <dt className="text-muted-foreground">Ref. Domains</dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.ahrefs?.refDomains}
+                          {website.metrics.ahrefs.refDomains}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
@@ -630,19 +746,19 @@ export function WebsiteDetailsPage({
                           Linked Domains
                         </dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.ahrefs?.linkedDomains}
+                          {website.metrics.ahrefs.linkedDomains}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
                         <dt className="text-muted-foreground">Backlinks</dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.ahrefs?.backlinks}
+                          {website.metrics.ahrefs.backlinks}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
                         <dt className="text-muted-foreground">Keywords</dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.ahrefs?.keywords}
+                          {website.metrics.ahrefs.keywords}
                         </dd>
                       </div>
                     </dl>
@@ -659,7 +775,7 @@ export function WebsiteDetailsPage({
                           Trust Flow (TF)
                         </dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.majestic?.trustFlow}
+                          {website.metrics.majestic.trustFlow}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
@@ -667,13 +783,13 @@ export function WebsiteDetailsPage({
                           Citation Flow (CF)
                         </dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.majestic?.citationFlow}
+                          {website.metrics.majestic.citationFlow}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
                         <dt className="text-muted-foreground">Domain Age</dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.majestic?.domainAge}
+                          {website.metrics.majestic.domainAge}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
@@ -681,13 +797,13 @@ export function WebsiteDetailsPage({
                           Backlinks (Maj)
                         </dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.majestic?.backlinks}
+                          {website.metrics.majestic.backlinks}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
                         <dt className="text-muted-foreground">Donor Domains</dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.majestic?.donorDomains}
+                          {website.metrics.majestic.donorDomains}
                         </dd>
                       </div>
                     </dl>
@@ -704,10 +820,7 @@ export function WebsiteDetailsPage({
                           Completed Orders
                         </dt>
                         <dd className="text-black font-medium">
-                          {
-                            getWebsiteData?.metrics?.availability
-                              ?.completedOrders
-                          }
+                          {website.metrics.availability.completedOrders}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
@@ -715,16 +828,13 @@ export function WebsiteDetailsPage({
                           Articles Avail.
                         </dt>
                         <dd className="text-green-600 bg-green-50 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium">
-                          {
-                            getWebsiteData?.metrics?.availability
-                              ?.articlesAvailable
-                          }
+                          {website.metrics.availability.articlesAvailable}
                         </dd>
                       </div>
                       <div className="flex justify-between items-center text-[11px] sm:text-xs">
                         <dt className="text-muted-foreground">Added Date</dt>
                         <dd className="text-black font-medium">
-                          {getWebsiteData?.metrics?.availability?.addedDate}
+                          {website.metrics.availability.addedDate}
                         </dd>
                       </div>
                     </dl>
@@ -749,11 +859,11 @@ export function WebsiteDetailsPage({
                     </div>
                     <div className="text-right">
                       <div className="text-base font-bold text-blue-600">
-                        {getWebsiteData?.metrics?.traffic}
+                        {website.traffic}
                       </div>
                       <div className="text-[9px] text-green-600 font-medium flex items-center justify-end gap-0.5 mt-0.5">
                         <TrendingUpIcon className="w-2 h-2" />
-                        {getWebsiteData?.metrics?.trafficGrowth} vs last month
+                        {website.trafficGrowth} vs last month
                       </div>
                     </div>
                   </div>
@@ -762,7 +872,7 @@ export function WebsiteDetailsPage({
                   <div className="h-64">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
-                        data={getWebsiteData?.trafficHistory}
+                        data={website.trafficHistory}
                         margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                       >
                         <defs>
@@ -889,7 +999,7 @@ export function WebsiteDetailsPage({
                     Top Countries
                   </h3>
                   <div className="space-y-3">
-                    {getWebsiteData?.topCountries?.map((country, idx) => (
+                    {website.topCountries.map((country, idx) => (
                       <div
                         key={idx}
                         className="flex items-center justify-between text-sm"
@@ -915,29 +1025,40 @@ export function WebsiteDetailsPage({
                     ))}
                   </div>
 
-                  {/* <div className="mt-6 pt-6 border-t border-border">
-                    <h3 className="text-sm font-bold text-foreground mb-3">Traffic Sources</h3>
+                  <div className="mt-6 pt-6 border-t border-border">
+                    <h3 className="text-sm font-bold text-foreground mb-3">
+                      Traffic Sources
+                    </h3>
                     <div className="space-y-2">
-                      {website.trafficSources.map((source, idx) =>
-                      <div key={idx} className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">{source.type}</span>
+                      {website.trafficSources.map((source, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between text-sm"
+                        >
+                          <span className="text-muted-foreground">
+                            {source.type}
+                          </span>
                           <div className="flex items-center gap-2 w-1/2">
                             <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                               <div
-                              className={`h-full rounded-full ${
-                              source.color === 'green' ? 'bg-green-500' :
-                              source.color === 'blue' ? 'bg-blue-500' :
-                              'bg-gray-400'}`
-                              }
-                              style={{ width: `${source.percentage}%` }} />
-                            
+                                className={`h-full rounded-full ${
+                                  source.color === "green"
+                                    ? "bg-green-500"
+                                    : source.color === "blue"
+                                      ? "bg-blue-500"
+                                      : "bg-gray-400"
+                                }`}
+                                style={{ width: `${source.percentage}%` }}
+                              />
                             </div>
-                            <span className="text-xs font-bold w-8 text-right">{source.percentage}%</span>
+                            <span className="text-xs font-bold w-8 text-right">
+                              {source.percentage}%
+                            </span>
                           </div>
                         </div>
-                      )}
+                      ))}
                     </div>
-                  </div> */}
+                  </div>
                 </CardContent>
               </Card>
             </div>

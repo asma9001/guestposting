@@ -40,7 +40,8 @@ import { NotificationsList } from "@/components/notifications/NotificationsList"
 import { useNotificationStore } from "@/stores/notificationStore";
 import { useWalletStore } from "@/stores/walletStore";
 import { toast } from "sonner";
-
+import { useFavoriteStore } from "@/stores/favoriteStore";
+import { useMessageStore } from "@/stores/messageStore";
 export function Header({
   onProfileClick,
   onCartClick,
@@ -51,54 +52,54 @@ export function Header({
   onLogout,
 }) {
   const { sidebarCollapsed, toggleMobileMenu } = useDashboardStore();
-  const { unreadCount } = useNotificationStore();
+
   const { switchRole } = useUserStore();
   const { isMobile } = useWindowSize();
   const { onHoldAmount, awaitingClearanceAmount } = useWalletStore();
-const {items} = useCartStore();
+  const { items } = useCartStore();
+  const favorites = useFavoriteStore((state) => state.favorites);
+  const favoriteCount = favorites.length;
+  const isFavorite = favoriteCount > 0;
+
   // Zustand Store states
   const user = useUserStore((state) => state.user);
   const role = useUserStore((state) => state.role);
-
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const totalUnread = useMessageStore((state) => state.totalUnread);
   console.log("🔍 Current User Profile in Header:", user);
+  console.log("message", unreadCount);
 
   const handleRoleSwitch = () => {
     const newRole = role === "advertiser" ? "publisher" : "advertiser";
-
-    // 1. clear auth
     localStorage.removeItem("accessToken");
 
-    // 2. update role in store
     switchRole(newRole);
-
     toast.success(`Switched to ${newRole}. Please login again 👋`);
-
     setTimeout(() => {
-      onLogout(); // App-level logout
+      onLogout();
     }, 500);
   };
 
   const handleLogout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
-
     toast.success("Logged out successfully 👋");
-
     setTimeout(() => {
-      onLogout(); // App-level logout
+      onLogout();
     }, 500);
   };
 
-  // Safe extraction of current wallet balance from store (Fallback to 0 if not loaded)
   const displayBalance = user?.walletBalance ?? 0;
-
+  const totalCartQuantity = items.reduce(
+    (sum, item) => sum + (item.quantity || 0),
+    0,
+  );
   return (
     <header
       className="fixed top-0 right-0 h-14 sm:h-16 bg-card border-b border-border z-30 transition-all duration-300"
       style={{ left: isMobile ? "0px" : sidebarCollapsed ? "80px" : "240px" }}
     >
       <div className="flex items-center justify-between h-full px-3 sm:px-4 md:px-6 gap-2 sm:gap-4">
-        {/* Left: Mobile menu toggle + Mobile brand */}
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <Button
             variant="ghost"
@@ -115,9 +116,7 @@ const {items} = useCartStore();
           <div className="hidden lg:flex flex-1" />
         </div>
 
-        {/* Right side controls */}
         <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
-          {/* Notifications */}
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -139,7 +138,6 @@ const {items} = useCartStore();
             </PopoverContent>
           </Popover>
 
-          {/* Messages */}
           <Button
             variant="ghost"
             size="icon"
@@ -151,12 +149,14 @@ const {items} = useCartStore();
               className="w-4 h-4 sm:w-5 sm:h-5"
               strokeWidth={1.5}
             />
-            <Badge className="absolute -top-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center p-0 bg-blue-500 text-white text-[10px] sm:text-xs">
-              12
-            </Badge>
+
+            {totalUnread > 0 && (
+              <Badge className="absolute -top-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center p-0 bg-blue-500 text-white text-[10px] sm:text-xs">
+                {totalUnread}
+              </Badge>
+            )}
           </Button>
 
-          {/* Cart and Favorites - Only for Advertiser */}
           {role === "advertiser" && (
             <>
               <Button
@@ -170,11 +170,11 @@ const {items} = useCartStore();
                   className="w-4 h-4 sm:w-5 sm:h-5"
                   strokeWidth={1.5}
                 />
-                {items.length > 0 && (
-      <Badge className="absolute -top-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center p-0 bg-primary text-primary-foreground text-[10px] sm:text-xs">
-        {items.length}
-      </Badge>
-    )}
+                {totalCartQuantity > 0 && (
+                  <Badge className="absolute -top-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center p-0 bg-primary text-primary-foreground text-[10px] sm:text-xs">
+                    {totalCartQuantity}
+                  </Badge>
+                )}
               </Button>
 
               <Button
@@ -188,14 +188,15 @@ const {items} = useCartStore();
                   className="w-4 h-4 sm:w-5 sm:h-5"
                   strokeWidth={1.5}
                 />
-                <Badge className="absolute -top-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center p-0 bg-red-500 text-white text-[10px] sm:text-xs">
-                  5
-                </Badge>
+                {favoriteCount > 0 && (
+                  <Badge className="absolute -top-0.5 -right-0.5 w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center p-0 bg-red-500 text-white text-[10px] sm:text-xs">
+                    {favoriteCount}
+                  </Badge>
+                )}
               </Button>
             </>
           )}
 
-          {/* Wallet Menu */}
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button

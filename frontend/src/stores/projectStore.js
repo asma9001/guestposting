@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import api from '@/lib/api';
 
-// Helper function to guarantee all required UI fields exist
+
 const sanitizeProject = (project) => ({
   ...project,
   spent: project.spent ?? 0,
@@ -17,13 +17,12 @@ export const useProjectStore = create((set, get) => ({
   isLoading: false,
   error: null,
 
-  // 1. Fetch all projects from database
   fetchProjects: async () => {
     set({ isLoading: true, error: null });
     try {
       const response = await api.get('/api/projects');
       if (response.data.success) {
-        // FIX: Sanitize all fetched projects
+        
         const sanitizedData = Array.isArray(response.data.data) 
           ? response.data.data.map(sanitizeProject) 
           : [];
@@ -39,12 +38,11 @@ export const useProjectStore = create((set, get) => ({
     }
   },
 
-  // 2. Get a single project from state
   getProject: (id) => {
     return get().projects.find((p) => (p._id === id || p.id === id));
   },
  
-  // 3. Add a new project to database
+ 
   addProject: async (projectData) => {
     set({ isLoading: true, error: null });
     try {
@@ -76,10 +74,8 @@ export const useProjectStore = create((set, get) => ({
       const response = await api.put(`/api/projects/${projectId}`, updatedData);
 
       if (response.data.success) {
-        // 2. Response data ko sanitize karein jaisa baaki functions mein kiya hai
+        
         const sanitizedProject = sanitizeProject(response.data.data);
-
-        // 3. State local array update karte waqt MongoDB ki id (_id ya id) dono match karein
         set((state) => ({
           projects: state.projects.map((project) =>
             (project._id === projectId || project.id === projectId) 

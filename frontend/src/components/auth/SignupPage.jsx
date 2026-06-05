@@ -86,6 +86,7 @@ const handleSubmit = async (e) => {
       fullName: form.fullName,
       email: form.email,
       password: form.password,
+      confirmPassword:form.confirmPassword,
       role,
     });
 

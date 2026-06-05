@@ -13,7 +13,12 @@ export function MessagesPage({ onPublisherClick } = {}) {
   const { selectedConversationId, selectConversation } = useMessageStore();
   const isMobile = useIsMobile();
   const [view, setView] = useState('list');
-
+useEffect(() => {
+  if (selectedConversationId) {
+    setView('chat'); // This will trigger automatically because you set it in step 1 above!
+  }
+}, [selectedConversationId]);
+console.log("selectedConversationId",selectedConversationId)
   useEffect(() => {
     if (selectedConversationId) {
       setView('chat');
@@ -43,6 +48,7 @@ export function MessagesPage({ onPublisherClick } = {}) {
         isMobile && view === 'list' ? "hidden" : "block"
       )}>
         <ChatWindow
+        conversationId={selectedConversationId}
           onBack={isMobile ? handleBackToList : undefined}
           className="h-full"
           onPublisherClick={onPublisherClick} />

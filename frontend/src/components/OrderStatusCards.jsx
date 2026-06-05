@@ -40,10 +40,13 @@ const statusConfig = [
 
 
 export function OrderStatusCards() {
-  const { orderStats } = useDashboardStore();
+const { orderStats, fetchOrderStats, isLoading } = useDashboardStore();
   const cardsRef = useRef([]);
   const countersRef = useRef([]);
-
+useEffect(() => {
+    fetchOrderStats();
+  }, [fetchOrderStats]);
+  console.log(orderStats)
   useEffect(() => {
     cardsRef.current.forEach((card, index) => {
       if (card) {

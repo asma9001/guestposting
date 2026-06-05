@@ -1,4 +1,5 @@
 import axios from "axios";
+import { socket } from "./socket";
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000",
@@ -33,25 +34,27 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response, 
   (error) => {
-    // Check if the server returned a 401 Unauthorized (Expired or invalid token)
     if (error.response && error.response.status === 401) {
-      console.warn("🔒 Token expired or invalid. Redirecting to login...");
+      console.warn("🔒 Token expired. Disconnecting socket and redirecting...");
       
-      // 1. LocalStorage aur tokens saaf karein
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("user-storage"); // Zustand cache reset
+      // 1. Socket disconnect karein
+      if (socket) {
+        socket.disconnect();
+      }
 
-      // 🚨 FIX: Reload karne ke bajaye user ko seedha login page par phenk dein
-      // Agar aapka login page "/" (root) par hai to "/" likhein, agar "/login" par hai to "/login" likhein.
+      // 2. Tokens clear karein
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("user-storage"); 
+localStorage.removeItem("userId"); 
+      // 3. Login page par bhejein
       window.location.href = "/login"; 
       
       return Promise.reject(error);
     }
 
-    // Agar 401 ke ilawa koi aur error ho (400, 403, 500) to use reject karein
     return Promise.reject(error);
   }
-); 
+);
 
 // ─── AUTH API ───
 export const authApi = {

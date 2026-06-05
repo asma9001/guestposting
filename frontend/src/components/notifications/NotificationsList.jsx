@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef,useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,8 +22,10 @@ import { gsap } from 'gsap';
 
 export function NotificationsList() {
   const { notifications, markAllAsRead, markAsRead, deleteNotification } = useNotificationStore();
+  console.log(notifications)
+  
   const listRef = useRef(null);
-
+const [filter, setFilter] = useState('all'); // State define karein
   useEffect(() => {
     if (listRef.current) {
       gsap.fromTo(
@@ -34,10 +36,12 @@ export function NotificationsList() {
     }
   }, []);
 
-  const filteredNotifications = notifications;
+const filteredNotifications = filter === 'unread' 
+  ? notifications.filter((n) => !n.isRead) 
+  : notifications;
 
-  const getStatusConfig = (status) => {
-    switch (status) {
+  const getStatusConfig = (type) => {
+    switch (type) {
       case 'ORDER_RECEIVED':
         return {
           icon: ShoppingCartIcon,
@@ -186,11 +190,11 @@ export function NotificationsList() {
                       
                       <div className="flex items-center justify-between">
                         <Badge variant="outline" className={`text-[10px] h-5 px-1.5 font-mono tracking-wider ${config.bg} ${config.color} border-transparent`}>
-                          {notification.status}
+                          {notification.type}
                         </Badge>
                         <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                           <ClockIcon className="w-3 h-3" />
-                          {formatTime(notification.timestamp)}
+                          {formatTime(notification.createdAt)}
                         </span>
                       </div>
                     </div>

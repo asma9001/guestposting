@@ -109,57 +109,7 @@ export function Sidebar({ currentView, onHomeClick, onWalletClick, onSupportClic
           })}
         </nav>
 
-        {/* Book a Meeting Section - Advertiser Only */}
-        {user?.role === 'advertiser' && (
-          <div className="border-t border-border">
-            {!sidebarCollapsed ? (
-              <div className="p-3">
-                {/* Manager Card */}
-                <div className="flex items-center gap-2.5 mb-3 px-1">
-                  <div className="relative flex-shrink-0">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-tertiary flex items-center justify-center text-white text-xs font-semibold shadow-sm">
-                      SM
-                    </div>
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-card rounded-full"></span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-foreground leading-tight truncate">Sarah Miller</p>
-                    <p className="text-[10px] text-muted-foreground leading-tight">Support Manager</p>
-                  </div>
-                </div>
-
-                {/* Book a Meeting Button */}
-                <button
-                  onClick={() => window.open('https://calendly.com', '_blank')}
-                  className="w-full flex items-center justify-center gap-2 h-8 rounded-lg text-[11px] font-semibold text-white bg-gradient-to-r from-primary to-tertiary hover:brightness-110 active:brightness-95 transition-all duration-150 shadow-sm">
-                  <CalendarIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                  Book a Meeting
-                </button>
-              </div>
-            ) : (
-              <div className="p-3 flex flex-col items-center gap-2">
-                <div className="relative">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-tertiary flex items-center justify-center text-white text-[10px] font-semibold shadow-sm">
-                    SM
-                  </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 border-2 border-card rounded-full"></span>
-                </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={() => window.open('https://calendly.com', '_blank')}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-primary bg-primary/10 hover:bg-primary/20 transition-colors">
-                      <CalendarIcon className="w-3.5 h-3.5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="bg-popover text-popover-foreground">
-                    <p className="text-sm">Book a Meeting with Sarah</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            )}
-          </div>
-        )}
+        
       </div>
     </aside>
   );

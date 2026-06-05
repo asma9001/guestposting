@@ -39,7 +39,6 @@ export function AddWebsiteWizard({
     setFormData(newData);
 
     try {
-      // 🟢 CREATE FLOW
       if (step === 3 && !isEditing) {
         const payload = {
           websiteUrl: newData.url,
@@ -50,20 +49,20 @@ export function AddWebsiteWizard({
           countries: newData.countries,
           language: newData.language,
           categories: newData.categories,
-          sensitiveTopics: newData.sensitiveTopics || [], // ✅ ADD THIS
+          sensitiveTopics: newData.sensitiveTopics || [],
           maxLinks: newData.maxLinks,
           linkType: newData.linkType,
           priceNormal: newData.priceNormal,
           priceSensitive: newData.priceSensitive,
           priceCopywriting: newData.priceCopywriting,
           enableCopywriting: newData.enableCopywriting,
+          discount: newData.discount,
         };
 
         await websiteApi.create(payload);
         toast.success("Website created successfully 🚀");
       }
 
-      // 🟡 UPDATE FLOW (EDIT)
       if (step === 3 && isEditing) {
         const payload = {
           websiteUrl: newData.url,
@@ -72,7 +71,7 @@ export function AddWebsiteWizard({
           countries: newData.countries,
           language: newData.language,
           categories: newData.categories,
-          sensitiveTopics: newData.sensitiveTopics || [], // ✅ ADD THIS
+          sensitiveTopics: newData.sensitiveTopics || [], 
           maxLinks: newData.maxLinks,
           linkType: newData.linkType,
           priceNormal: newData.priceNormal,

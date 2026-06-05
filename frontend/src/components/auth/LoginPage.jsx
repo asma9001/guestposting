@@ -28,47 +28,47 @@ export function LoginPage({ onLogin, onNavigateToSignup }) {
   };
 
   const { login } = useUserStore();
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const validationErrors = validate();
-  if (Object.keys(validationErrors).length > 0) {
-    setErrors(validationErrors);
-    return;
-  }
-  setErrors({});
-  setLoading(true);
-
-  try {
-    const res = await authApi.login({ email, password, role });
-    
-    if (res?.success) {
-      const { token, user } = res;
-      
-      // Data Store karna
-      localStorage.setItem("accessToken", token);
-      localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem("userRole", user.role);
-
-      // Zustand update
-      useUserStore.setState({ user, role: user.role, isAuthenticated: true });
-
-      toast.success("Login Successful");
-      onLogin(token, user.role); 
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
     }
-  } catch (err) {
-    console.error("Login Error:", err);
+    setErrors({});
+    setLoading(true);
 
-    // 🚨 Yahan backend se bheja gaya custom message (403 or 400) pick hoga
-    // Agar backend se response object nahi mil raha, toh default message dikhega
-    const errorMessage = 
-      err.response?.data?.message || "Login failed. Please check your credentials.";
+    try {
+      const res = await authApi.login({ email, password, role });
+
+      if (res?.success) {
+        const { token, user } = res;
+
+        localStorage.setItem("accessToken", token);
+        localStorage.setItem("user", JSON.stringify(user));
+        localStorage.setItem("userRole", user.role);
       
-    toast.error(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+        useUserStore.setState({ user, role: user.role, isAuthenticated: true });
+
+        toast.success("Login Successful");
+        
+        setTimeout(() => {
+          onLogin(token, user.role);
+        }, 500);
+      }
+    } catch (err) {
+      console.error("Login Error:", err);
+
+      const errorMessage =
+        err.response?.data?.message ||
+        "Login failed. Please check your credentials.";
+
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-background flex">
       {/* Left panel - branding */}

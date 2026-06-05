@@ -1,29 +1,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDashboardStore } from '@/stores/dashboardStore';
+import { useEffect } from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
-const weeklyOrderData = [
-{ date: 'Mon', orders: 45 },
-{ date: 'Tue', orders: 52 },
-{ date: 'Wed', orders: 58 },
-{ date: 'Thu', orders: 47 },
-{ date: 'Fri', orders: 61 },
-{ date: 'Sat', orders: 34 },
-{ date: 'Sun', orders: 28 }];
 
-
-const monthlyOrderData = [
-{ date: 'Week 1', orders: 245 },
-{ date: 'Week 2', orders: 287 },
-{ date: 'Week 3', orders: 295 },
-{ date: 'Week 4', orders: 318 }];
 
 
 export function OrdersByDateChart() {
-  const { chartPeriod, setChartPeriod } = useDashboardStore();
-  const data = chartPeriod === 'weekly' ? weeklyOrderData : monthlyOrderData;
+const { weeklyChartData, monthlyChartData, fetchOrderStats, chartPeriod, setChartPeriod } = useDashboardStore();
 
+  useEffect(() => { 
+    fetchOrderStats(); 
+  }, [fetchOrderStats]);
+// Dynamic data select karein
+  const data = chartPeriod === 'weekly' ? (weeklyChartData || []) : (monthlyChartData || []);
   return (
     <Card className="bg-card border-border">
       <CardHeader>
